@@ -1,0 +1,3 @@
+pytest>=8.0,<10.0
+# For live integration testing, install GenLayer SDK / gltest according to
+# https://docs.genlayer.com/developers/intelligent-contracts/tooling-setup
