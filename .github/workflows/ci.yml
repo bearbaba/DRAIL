@@ -21,7 +21,7 @@ jobs:
         with:
           python-version: '3.12'
       # This job must NOT be silently skipped: SDK compatibility is a gate.
-      - run: python -m pip install genvm-linter genlayer-test
+      - run: python -m pip install genvm-linter==0.11.0 genlayer-test==0.29.2
       - run: genvm-lint check contracts/drail.py
       - run: genvm-lint check contracts/consumer_fixture.py
       # GenLayer DirectVM SDK currently expects the legacy artifact name.

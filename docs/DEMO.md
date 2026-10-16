@@ -1,4 +1,4 @@
-# Studionet Demo Protocol (not yet executed)
+# Studionet Demo Protocol (bootstrap smoke only; full lifecycle pending)
 
 1. Serve `examples/policy_v1.txt` as plain text at a stable publicly reachable
    `https://.../current-policy.txt`. GenVM needs to fetch it reliably. No login,
@@ -51,7 +51,7 @@
 | Stale proposal rejected | TODO |
 | Outage/freeze test | TODO |
 | Consumer deployment and cross-contract call | TODO |
-| Test run report and exact revision | TODO |
+| Test run report and exact revision | [Bootstrap smoke success](https://github.com/bearbaba/DRAIL/actions/runs/38944318539) |
 | Oversized/duplicate/rollback adversarial tx | TODO |
 | Publisher identity and signed-version verification | NOT IMPLEMENTED (known V1 limitation) |
 

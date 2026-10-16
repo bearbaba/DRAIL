@@ -9,11 +9,10 @@ policy drift, applies **tightening immediately** after consensus, stages
 **widening** for explicit owner approval plus another independent source check,
 and freezes execution when evidence cannot be verified.
 
-> **Status: V1 hardening candidate (2026-10-17).** Python compilation and 32
-> deterministic shim tests pass locally. NOT yet validated with `genvm-lint`, live
-> GenLayer validators, GenLayer Studio, or a verified deployed address. This is
-> not an audited contract, payment custody system, autonomous scheduler, or
-> guarantee of policy correctness. **Do not use to control real funds.**
+> **Status: V1 hardening candidate (2026-10-17).** 33 local shim tests,
+> 3 official GenLayer DirectVM tests and GenVM lints passed. One Studionet
+> bootstrap smoke test also passed; full live lifecycle and consumer finality
+> remain unverified. Not audited, not a custody system. **Do not use for real funds.**
 
 ## Problem
 
@@ -63,7 +62,8 @@ contracts/consumer_fixture.py     Optional downstream integration demonstrator
 examples/policy_v1.txt           Baseline authority policy
 examples/policy_v2.txt           Strict policy (automatic reduction)
 examples/policy_v3.txt           Expanded policy (requires owner approval)
-tests/test_local_contract.py      13 deterministic state/invariant tests
+tests/test_local_contract.py      33 deterministic state/invariant tests
+   tests/test_direct_genvm.py        3 official GenLayer direct-mode tests
 studionet/test_live.py           Live GenLayer validation scaffold (not run)
 docs/ARCHITECTURE.md             State model and trust assumptions
 docs/SECURITY.md                 Threat model and limitations
@@ -131,14 +131,20 @@ actual asset.** No native value or ERC-20 is transferred here.
 ```bash
 python -m pip install -r requirements-dev.txt
 python -m pytest -q tests/test_local_contract.py
-# 32 passed in the authoring environment
+# 33 passed in the authoring environment
 python -m compileall -q contracts
 ```
 
-These tests use a fake GenLayer runtime and simulated leader answers. They
+The local tests use a fake GenLayer runtime and simulated leader answers. They
 exercise deterministic state transitions but **do not prove validator
 agreement**, real web retrieval, cross-contract call finality, or live ABI
 compatibility. Those need SDK validation and Studio integration.
+
+## Verified CI and Studionet evidence
+
+- [GenVM lint + GenLayer DirectVM CI](https://github.com/bearbaba/DRAIL/actions/runs/38945186723): both contracts lint clean and 3 direct tests passed.
+- [Studionet bootstrap smoke test](https://github.com/bearbaba/DRAIL/actions/runs/38944318539): deploy, denied monitor bootstrap, authorized owner poll and state readback passed.
+- Both reports are specific to the referenced commits, not the final testnet lifecycle. See [DEMO](docs/DEMO.md) for missing evidence.
 
 ## Next verification steps
 

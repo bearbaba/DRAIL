@@ -20,6 +20,7 @@ def test_deploy_and_live_consensus():
     monitor = create_account()
     url = os.environ['DRAIL_AUTHORITY_URL']
     c = get_contract_factory('Drail').deploy(args=[url, agent, monitor.address])
+    print(f'DRAIL_DEPLOYED_ADDRESS={c.address}', flush=True)
     initial = json.loads(c.status().call())
     assert initial['health'] == 'UNRESOLVED'
     assert initial['initialized'] is False
@@ -31,8 +32,10 @@ def test_deploy_and_live_consensus():
     assert json.loads(c.status().call())['initialized'] is False
 
     live = c.poll().transact()  # genuine multi-validator observation
+    print(f'DRAIL_POLL_RECEIPT={str(live)[:2000]}', flush=True)
     assert tx_execution_succeeded(live)
     result = json.loads(c.status().call())
+    print(f'DRAIL_CONFIRMED_STATUS={json.dumps(result, sort_keys=True)}', flush=True)
     assert result['initialized'] is True
     assert result['health'] == 'OK'
     assert result['revision'] >= 1
