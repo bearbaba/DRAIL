@@ -24,4 +24,4 @@ jobs:
       - run: python -m pip install genvm-linter genlayer-test
       - run: genvm-lint check contracts/drail.py
       - run: genvm-lint check contracts/consumer_fixture.py
-      - run: python -m pytest -q tests/test_direct_genvm.py
+      # genlayer-test 0.29.2 expects the older universal tarball name.\n      # genvm-linter downloads the identical artifact through the new release URL.\n      - name: Reuse validated runner bundle for DirectVM\n        run: |\n          mkdir -p ~/.cache/gltest-direct\n          cp -n ~/.cache/genvm-linter/genvm-universal-*.tar.xz ~/.cache/gltest-direct/\n          ls -lh ~/.cache/gltest-direct/\n      - run: python -m pytest -q tests/test_direct_genvm.py
