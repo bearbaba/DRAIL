@@ -507,3 +507,12 @@ def test_consumer_uses_real_guard_result_and_agent_binding(ctx):
     with pytest.raises(ValueError, match='permission denied'):
         consumer.execute('SEND', 1)
     assert consumer.count() == 1
+
+
+def test_unlimited_does_not_count_as_numeric_maximum(ctx):
+    c, svc, actor, set_doc = ctx
+    set_doc()
+    clause = "Agents may SEND unlimited $100.00 per operation."
+    svc.page = svc.page.replace(svc.response["send_quote"], clause)
+    svc.response["send_quote"] = clause
+    assert c.poll() == "UNRESOLVED"
