@@ -79,7 +79,7 @@ def quote_supports_cap(action: str, quote: str, cents: int) -> bool:
         return forbidden
     if forbidden or len(amounts) != 1 or "operation" not in low:
         return False
-    if re.search(r"\\b(up to|maximum|at most|limit)\\b", low) is None:
+    if re.search(r"\b(up to|maximum|at most|limit)\b", low) is None:
         return False
     dollars, fraction = amounts[0]
     return int(dollars) * 100 + int(fraction or "00") == cents
