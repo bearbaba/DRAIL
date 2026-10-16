@@ -13,15 +13,22 @@ class DrailConsumerFixture(gl.Contract):
     executed: u256
 
     def __init__(self, guard: Address):
-        self.guard = guard if isinstance(guard, Address) else Address(guard)
+        addr = guard if isinstance(guard, Address) else Address(guard)
+        if addr == Address("0x0000000000000000000000000000000000000000"):
+            raise gl.vm.UserError("guard must be deployed and nonzero")
+        self.guard = addr
         self.executed = u256(0)
 
     @gl.public.write
     def execute(self, action: str, amount_cents: int) -> bool:
+        if not isinstance(action, str) or action.upper() not in ("SEND", "SWAP", "BRIDGE"):
+            raise gl.vm.UserError("invalid action")
+        if type(amount_cents) is not int or amount_cents <= 0 or amount_cents > 10 ** 12:
+            raise gl.vm.UserError("invalid amount")
         contract = gl.get_contract_at(self.guard)
         allowed = contract.view().can_execute(
             gl.message.sender_address, action, amount_cents)
-        if not allowed:
+        if allowed is not True:
             raise gl.vm.UserError("DRAIL permission denied")
         self.executed = u256(int(self.executed) + 1)
         return True

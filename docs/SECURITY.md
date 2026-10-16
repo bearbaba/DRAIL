@@ -7,25 +7,32 @@ permission primitive with zero asset custody.
 
 1. Owner-controlled immutable source URL and scoped agent identity.
 2. Monitor/owner authorization, unauthorized callers cannot mutate state.
-3. Independent source fetches and comparative validation of action-driving
+3. Canonical source envelope binds policy version, agent, chain, currency,
+   effective status, and strict max size. Complete source is hashed. A replayed
+   lower version or modified same version freezes execution.
+4. Deterministic quote validation checks the action, cited amount, prohibition
+   and per-operation scope; conflicting duplicate action clauses are denied.
+5. Independent source fetches and comparative validation of action-driving
    fields; no validator should only check output syntax.
-4. Citation substrings must exist in the retrieved page; three capabilities
+6. Citation substrings must exist in the retrieved page; three capabilities
    must all be resolvable, no guessed permissions.
-5. Automatic cap reduction; increases are staged and require owner approval
+7. Automatic cap reduction; increases are staged and require owner approval
    plus a new live source check of identical evidence digest and caps.
-6. Fetch errors and ambiguity block authorization, without pretending that
+8. Fetch errors and ambiguity block authorization, without pretending that
    temporary unavailability is a true revocation.
-7. Emergency pause after RPC/validator failure, when `poll` cannot commit.
-8. Audited revisions record actor, excerpts, source hash and effective caps.
-9. No transfers / reentrancy-sensitive payout path in V1.
+9. Emergency pause after RPC/validator failure, when `poll` cannot commit.
+10. Audited revisions record actor, excerpts, source hash and effective caps.
+11. No transfers / reentrancy-sensitive payout path in V1.
 
 ## Threat matrix
 
 | Threat | Current behavior | Residual risk |
 |---|---|---|
 | Caller injects their own evidence URL | No user URL accepted by poll | Owner may pick a poor URL at deploy |
+| Source duplicates rules or contains a hidden late override | Reject duplicate action mentions; reject >8192 bytes | Complex natural language may still be misread |
 | Source page contains hostile prompt | Prompt instructs to ignore; extracted excerpt checks | A malicious page may still deceive LLM validators |
 | Source URL goes offline | On successful consensus about fetch failure, freeze | If consensus transaction reverts, previous gate stays open until authorized emergency pause |
+| Source publisher replays old version | Freeze if version decreases or same version changes | Publisher can still forge higher version; signatures not implemented |
 | Content differs between validators | Source digest required to match; likely consensus fails | No automatic freshness shutoff without a clock or monitor |
 | Increase after compromise | Staged until owner approval and fresh source verification | Compromised owner can approve; no multi-sig in V1 |
 | Old pending proposal after source changes | New source hash/caps checked before approval | Content same in digest but source host later changes again (TOCTOU) |
