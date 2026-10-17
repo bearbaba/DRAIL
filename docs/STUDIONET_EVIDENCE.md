@@ -170,6 +170,17 @@ The tester submitted the result of `status()` after invoking the V3 `poll()` aga
 | `last_verified_at` | `1792207878` |
 | `authority_url` | `https://raw.githubusercontent.com/bearbaba/DRAIL/fix/security-hardening-v1/examples/policy_v1.txt` |
 
-**Interpretation:** V3 proposes wider SEND ($200), SWAP ($350), and BRIDGE ($25) caps, but effective rights remain at V2 ($50, $150, $0). This passes the state-level widening-gate assertion and preserves denial-by-default for new permissions. The V3 transaction hash and FINALIZED receipt have not yet been supplied; `audit_at(2)` and actual `can_execute` checks during the pending state have not yet been received. Do not count owner authorization as passed until tested.
+**Interpretation:** V3 proposes wider SEND ($200), SWAP ($350), and BRIDGE ($25) caps, but effective rights remain at V2 ($50, $150, $0). This passes the state-level widening-gate assertion and preserves denial-by-default for new permissions. The V3 transaction hash, FINALIZED receipt, and `audit_at(2)` have not yet been supplied; two provisional `can_execute` results during pending widening were supplied without reprinting the full `who`/`action` inputs. Do not count owner authorization as passed until tested.
 
 **Next gate:** Capture V3 poll TX and `audit_at(2)`; test SEND 8000 => false, SEND 4000 => true, BRIDGE 100 => false using the configured agent before `approve_widening()`. Then test unauthorized approval with a different wallet, followed by owner approval against the unchanged same-source digest.
+
+### V3 permission checks while widening pending — user-reported results
+
+User reported these values after being instructed to keep agent `0x3333333333333333333333333333333333333333` and `action=SEND`:
+
+| Test (assuming retained who/action) | User-reported read result | Expected |
+| --- | --- | --- |
+| `can_execute(agent, "SEND", 8000)` | `false` | `false` |
+| `can_execute(agent, "SEND", 4000)` | `true` | `true` |
+
+These match V2 effective limits held during `PENDING_WIDENING` despite V3 proposed SEND 20000 cents. Individual messages did not contain the `who` or `action` fields, so those inputs remain assumed. Outstanding before owner approval: `can_execute(agent, "BRIDGE", 100) == false`, V3 `poll()` TX + finality, `audit_at(2)` and a rejected approval attempt from a non-owner account.
