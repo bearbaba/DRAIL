@@ -79,7 +79,7 @@ Use `contracts/consumer_fixture.py` as a second contract deployed on Studionet w
 | --- | --- | --- | --- | --- | --- |
 | Lab deployment + baseline | Lab V1 published in branch | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`poll()` FINALIZED](https://explorer-studio.genlayer.com/tx/0xb3fd92a84b91c250c9dc2e75df55646f2db3dff6c0380032add7275c6672f943) (tester-transcribed Explorer details) | `ACTIVE`, V1 caps `[10000,25000,0]`, `audit_at(0)=INITIALIZED`, revision 1 | BASELINE PASS |
 | Same-version conflict / recovery | Mutation `a247ed8`, restored `c347022` | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`UNRESOLVED` FINALIZED](https://explorer-studio.genlayer.com/tx/0xa26822c69c44da50da6ae7fa564a83ec6498ac672510293f8e1aae72ce0cd59c); [`ACTIVE` recovery FINALIZED](https://explorer-studio.genlayer.com/tx/0xe3c1b26cdbaa646604634af2efc69d3b361b64d1eb0319f4cc89f81f03999a8c) | version-conflict audit, SEND 100 denied while frozen; post-recovery `health=OK`, revision 3, baseline hash/caps restored | TAMPERING & RECOVERY FULL PASS |
-| V2 tightening + rollback | V2 published `1fc7f8e`, rollback source NOT published | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | Studio status confirms V2 tightening; `poll()` TX hash/FINALIZED not yet supplied | `health=OK`, `RESTRICTED`, version 2, caps `[5000,15000,0]`, revision 4; `audit_at(3)` pending | V2 STATE PASS; finality/audit/permissions pending |
+| V2 tightening + rollback | V2 published `1fc7f8e`; rollback source NOT published | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`poll()` FINALIZED](https://explorer-studio.genlayer.com/tx/0xd811f00da484fbfb7537f14a19a81389ff57a6f5bff6964f908f8a267e2b6373), return `RESTRICTED` | `health=OK`, `RESTRICTED`, version 2, caps `[5000,15000,0]`, revision 4; audit/permissions pending | V2 STATE + FINALITY PASS; audit/permissions pending |
 | Invalid metadata / conflict / oversize | TBD | TBD | TBD | TBD | PENDING |
 | V3 stale widening approval | TBD | TBD | TBD | TBD | PENDING |
 | Pause + recover | TBD | TBD | TBD | TBD | PENDING |
@@ -326,6 +326,19 @@ The tester supplied the following `status()` readback from the isolated Lab inst
 
 The current GitHub raw source is verified to be version 2, SEND $50, SWAP $150 and BRIDGE prohibited, byte-identical to archived `03_tightened_v2.txt`. State matches the expected monotonic tightening applied without staged widening.
 
-**Evidence grade:** V2 **state PASS** on the tester's Studio status. The tester has NOT yet supplied the associated `poll()` Explorer TX hash / explicit `FINALIZED` receipt, `audit_at(3)`, or the post-tightening SEND $80 denied / SEND $40 allowed boundary results. Do not claim that those checks have already occurred.
+**Evidence grade:** V2 **state + FINALIZED transaction PASS** on the tester's Studio status and Explorer transcript. The tester has NOT yet supplied `audit_at(3)` or the post-tightening SEND $80 denied / SEND $40 allowed boundary results. Do not claim that those checks have already occurred.
 
-**Before rollback Test E:** collect the V2 `poll()` Explorer TX and confirm `FINALIZED`, `audit_at(3).kind=TIGHTENED` with version 2, then `can_execute(agent,"SEND",8000)=false` and `can_execute(agent,"SEND",4000)=true` while `evidence_fresh=true`. Only then deliberately publish archived `04_rollback_v1.txt` at the Lab-only URL. The original V3 demo stays unchanged.
+**Before rollback Test E:** V2 `poll()` Explorer TX **FINALIZED** is now confirmed by tester's receipt. Next collect `audit_at(3).kind=TIGHTENED` with version 2, then `can_execute(agent,"SEND",8000)=false` and `can_execute(agent,"SEND",4000)=true` while `evidence_fresh=true`. Only then deliberately publish archived `04_rollback_v1.txt` at the Lab-only URL. The original V3 demo stays unchanged.
+
+### Test D — FINALIZED V2 tightening transaction (user-provided Explorer receipt, 2026-10-17)
+
+- TX: https://explorer-studio.genlayer.com/tx/0xd811f00da484fbfb7537f14a19a81389ff57a6f5bff6964f908f8a267e2b6373
+- **Status: FINALIZED**, type: Call, method `poll`, GenVM **SUCCESS**, return `"RESTRICTED"`, consensus **Accepted**.
+- From/authorized monitor-owner-agent: `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb`.
+- To/lab contract: `0x4c80788eA0A3c80906bd365b95f4813ea64D215a`.
+- Initial validators: **5**; rotation count: **0**; execution mode: **Normal**; nonce: **356**; Explorer Created At: **Oct 17, 2026, 12:00:34 PM**.
+- Equivalence output: `result=VALID`, `policy_version=2`, SEND `5000`, SWAP `15000`, BRIDGE `0`, quotes "Agents may SEND up to $50.00 per operation.", "Agents may SWAP up to $150.00 per operation.", "BRIDGE is prohibited.".
+- Source hash: `87853722863dadb7fefd17e5e136387046caa78e6f16f5e273cfd785168ec4d2`, equal to the user's V2 `status().last_source_hash`.
+- Prior Studio status: `health=OK`, `policy_status=RESTRICTED`, `last_policy_version=2`, `revision=4`, caps `[5000,15000,0]`, `pending=false`, `evidence_fresh=true` at readback.
+
+**Verdict:** Tightening state and transaction finality confirmed from tester-supplied records. Remaining gates before publishing rollback V1: `audit_at(3)` showing `kind=TIGHTENED` and version 2, plus Studio `can_execute` readbacks for SEND 8000 `false` and SEND 4000 `true` (same agent, while evidence fresh). The V2 Lab-only source remains unchanged; original V3 reference contract and source remain outside this test. An Explorer receipt is user-transcribed and not an independent third-party Explorer attestation.
