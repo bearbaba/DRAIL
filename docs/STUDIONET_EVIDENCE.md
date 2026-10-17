@@ -144,5 +144,32 @@ The tester was directed to retain `agent=0x3333333333333333333333333333333333333
 - Expected first poll return: `WIDENING_PENDING`; `policy_status=PENDING_WIDENING`, `pending=true`, `pending_policy_version=3`, `pending_caps=[20000,35000,2500]`.
 - Expected **effective** limits before explicit owner approval: `[5000,15000,0]` unchanged; `revision=3`; `audit_at(2).kind=WIDENING_PENDING`.
 - Expected blocked before approval: SEND 8000 (false), BRIDGE 100 (false). Permitted while evidence fresh: SEND 4000 (true).
-- **Status: source V3 published, on-chain V3 poll and audit pending. Do NOT claim passing the widening gate until successful TX and status readback.**
+- **Status: V3 state readback submitted, with expected PENDING_WIDENING and effective V2 limits preserved. V3 poll transaction hash, finality evidence and audit_at(2) still pending.**
 - The V2 source was archived at `examples/archive/policy_v2_tightened_2026-10-17.txt` before this source edit.
+
+
+### V3 widening state readback — tester submission
+
+The tester submitted the result of `status()` after invoking the V3 `poll()` against the **same deployed contract**.
+
+| Field | Tester readback |
+| --- | --- |
+| `last_policy_version` | `3` |
+| `policy_status` | `PENDING_WIDENING` |
+| `revision` | `3` |
+| `health` | `OK` |
+| `evidence_fresh` | `true` at time of read |
+| `pending` | `true` |
+| `pending_policy_version` | `3` |
+| `pending_caps` | `[20000,35000,2500]` |
+| `send_cents` (effective) | `5000` |
+| `swap_cents` (effective) | `15000` |
+| `bridge_cents` (effective) | `0` |
+| `last_source_hash` | `9e655041844ee3255486b4094dbb5badb6235532497d5155daf84a2ccedfc2fb` |
+| `pending_source_hash` | `9e655041844ee3255486b4094dbb5badb6235532497d5155daf84a2ccedfc2fb` |
+| `last_verified_at` | `1792207878` |
+| `authority_url` | `https://raw.githubusercontent.com/bearbaba/DRAIL/fix/security-hardening-v1/examples/policy_v1.txt` |
+
+**Interpretation:** V3 proposes wider SEND ($200), SWAP ($350), and BRIDGE ($25) caps, but effective rights remain at V2 ($50, $150, $0). This passes the state-level widening-gate assertion and preserves denial-by-default for new permissions. The V3 transaction hash and FINALIZED receipt have not yet been supplied; `audit_at(2)` and actual `can_execute` checks during the pending state have not yet been received. Do not count owner authorization as passed until tested.
+
+**Next gate:** Capture V3 poll TX and `audit_at(2)`; test SEND 8000 => false, SEND 4000 => true, BRIDGE 100 => false using the configured agent before `approve_widening()`. Then test unauthorized approval with a different wallet, followed by owner approval against the unchanged same-source digest.
