@@ -77,7 +77,7 @@ Use `contracts/consumer_fixture.py` as a second contract deployed on Studionet w
 
 | Test | Source commit | New contract | TX / Explorer | State + audit | Verdict |
 | --- | --- | --- | --- | --- | --- |
-| Lab deployment + baseline | Lab V1 published in branch | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | Deployment TX not provided; `poll()` pending | Constructor state readback supplied; `initialized=false` | DEPLOYED; activation pending |
+| Lab deployment + baseline | Lab V1 published in branch | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`poll()` TX submitted](https://explorer-studio.genlayer.com/tx/0xb3fd92a84b91c250c9dc2e75df55646f2db3dff6c0380032add7275c6672f943); explicit finality not supplied | `ACTIVE`, V1, caps `[10000,25000,0]`, revision 1, source hash submitted | BASELINE STATE PASS; finality and audit pending |
 | Same-version conflict / recovery | TBD | TBD | TBD | TBD | PENDING |
 | V2 rollback + recovery | TBD | TBD | TBD | TBD | PENDING |
 | Invalid metadata / conflict / oversize | TBD | TBD | TBD | TBD | PENDING |
@@ -85,7 +85,7 @@ Use `contracts/consumer_fixture.py` as a second contract deployed on Studionet w
 | Pause + recover | TBD | TBD | TBD | TBD | PENDING |
 | Consumer fixture allow/deny | TBD | TBD | TBD | TBD | PENDING |
 
-**Lab deployment has now been reported with a fresh contract address and constructor-state readback.** This is not evidence of a finalized deployment receipt or any adversarial test passing. The initial `poll()` transaction and all adversarial scenarios are still pending. Capture actual transactions and status before recording outcomes.
+**Lab deployment has now been reported with a fresh contract address and constructor-state readback.** This is not evidence of a finalized deployment receipt or any adversarial test passing. The V1 `poll()` transaction and updated `status()` readback have now been submitted; Explorer finality and `audit_at(0)` are still outstanding, and all adversarial scenarios remain pending. Capture actual transactions and status before recording outcomes.
 
 ### Security Lab instance — initial Studio readback, 2026-10-17
 
@@ -95,8 +95,31 @@ Use `contracts/consumer_fixture.py` as a second contract deployed on Studionet w
 - **Pinned source**: `https://raw.githubusercontent.com/bearbaba/DRAIL/studionet-adversarial-lab/examples/adversarial/current_policy.txt`
 - **Owner / Monitor / Agent:** `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb`
 - **Constructor state observed in user-provided `status()`**: `initialized=false`, `health=UNRESOLVED`, `policy_status=UNVERIFIED`, `revision=0`, `last_policy_version=0`, `evidence_fresh=false`, effective caps `[0,0,0]`, `pending=false`.
-- **Next:** call `poll()` from owner, wait for **FINALIZED**, then collect `status()` and `audit_at(0)`. Expected V1 `INITIALIZED`, effective caps `[10000,25000,0]`, `revision=1`.
+- **Update:** owner `poll()` was invoked and the post-poll `status()` readback matches V1 initialization. Confirm Explorer **FINALIZED** and collect `audit_at(0)` before publishing any adversarial source.
 - **Do not change** `current_policy.txt` until the Lab V1 transaction finalizes and its audit is captured.
 - **Original reference contract untouched**: `0xC67f64634b603cF3fe62fD3447FEedb3E4707E56`.
 
 **Evidence quality:** Studio state readback only; deployment TX hash and finalized status not supplied.
+
+### Baseline V1 poll — state readback and TX submitted (2026-10-17)
+
+- Transaction: https://explorer-studio.genlayer.com/tx/0xb3fd92a84b91c250c9dc2e75df55646f2db3dff6c0380032add7275c6672f943
+- This Explorer page could not be fetched automatically; **transaction FINALIZED status has NOT yet been confirmed by a copied Explorer receipt**. A TX URL does not prove finality.
+- Contract: `0x4c80788eA0A3c80906bd365b95f4813ea64D215a`
+- Policy URL: `https://raw.githubusercontent.com/bearbaba/DRAIL/studionet-adversarial-lab/examples/adversarial/current_policy.txt`
+- Agent, monitor, owner: `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb`; chain `61999`.
+
+| State field | User-submitted `status()` |
+| --- | --- |
+| `initialized` | `true` |
+| `health` | `OK` |
+| `policy_status` | `ACTIVE` |
+| `evidence_fresh` | `true` (at test time) |
+| `last_policy_version` | `1` |
+| `send_cents` / `swap_cents` / `bridge_cents` | `10000 / 25000 / 0` |
+| `revision` | `1` |
+| `pending` | `false` |
+| `last_verified_at` | `1792211544` |
+| `last_source_hash` | `43614571712be09b85df4452e8b797c6eb2943b422a408a1b4abda54843860a3` |
+
+**Assessment:** Baseline policy was successfully activated at Studio readback level. The original lab V1 source remains unchanged (verified against immutable `01_baseline_v1.txt` snapshot). Next required evidence: Explorer status **FINALIZED** and `audit_at(0)` with `kind=INITIALIZED`, `revision=1` and the same digest. Only after capturing both should `current_policy.txt` be replaced with same-version-mutated V1, to avoid conflicting observations during baseline finalization.
