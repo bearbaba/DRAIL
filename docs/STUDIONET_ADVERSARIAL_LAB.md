@@ -79,7 +79,7 @@ Use `contracts/consumer_fixture.py` as a second contract deployed on Studionet w
 | --- | --- | --- | --- | --- | --- |
 | Lab deployment + baseline | Lab V1 published in branch | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`poll()` FINALIZED](https://explorer-studio.genlayer.com/tx/0xb3fd92a84b91c250c9dc2e75df55646f2db3dff6c0380032add7275c6672f943) (tester-transcribed Explorer details) | `ACTIVE`, V1 caps `[10000,25000,0]`, `audit_at(0)=INITIALIZED`, revision 1 | BASELINE PASS |
 | Same-version conflict / recovery | Mutation `a247ed8`, restored `c347022` | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`UNRESOLVED` FINALIZED](https://explorer-studio.genlayer.com/tx/0xa26822c69c44da50da6ae7fa564a83ec6498ac672510293f8e1aae72ce0cd59c); [`ACTIVE` recovery FINALIZED](https://explorer-studio.genlayer.com/tx/0xe3c1b26cdbaa646604634af2efc69d3b361b64d1eb0319f4cc89f81f03999a8c) | version-conflict audit, SEND 100 denied while frozen; post-recovery `health=OK`, revision 3, baseline hash/caps restored | TAMPERING & RECOVERY FULL PASS |
-| V2 rollback + recovery | TBD | TBD | TBD | TBD | PENDING |
+| V2 tightening + rollback | V2 published `1fc7f8e`, rollback source NOT published | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | V2 tightening `poll()` pending | Expected revision 4 `TIGHTENED`, `[5000,15000,0]` | PREPARED; no V2 on-chain receipt yet |
 | Invalid metadata / conflict / oversize | TBD | TBD | TBD | TBD | PENDING |
 | V3 stale widening approval | TBD | TBD | TBD | TBD | PENDING |
 | Pause + recover | TBD | TBD | TBD | TBD | PENDING |
@@ -288,3 +288,17 @@ The recovered source and quote digests **exactly match** the original `audit_at(
 - This completes the isolated Lab case **tamper detection → fail-closed freeze → exact-source recovery → restored authorization**, without an asset transfer or redeploy.
 
 **Case B & Case C: FULL PASS.** Lab policy V2 tightening may now be published at the *same Lab-only URL* to prepare the rollback test. Stop and record its poll and audit before publishing a V1 rollback source.
+
+### Test D — V2 tightening published; live poll pending
+
+- Lab-only V2 publication commit: `1fc7f8e9f2741eb9f8ae96907605055c3e8d57bc`.
+- Current pinned Lab URL: https://raw.githubusercontent.com/bearbaba/DRAIL/studionet-adversarial-lab/examples/adversarial/current_policy.txt
+- Current raw source was fetched and confirmed byte-for-byte identical to immutable `examples/adversarial/snapshots/03_tightened_v2.txt`.
+- Policy version **2**, correct lab agent `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb` and Studionet chain `61999`.
+- Tightened limits: **SEND $50**, **SWAP $150**, **BRIDGE prohibited** (caps `[5000,15000,0]`).
+- Tester's prior V1 recovery `poll()` was **FINALIZED**, `health=OK`, revision 3; tester subsequently reported `can_execute(SEND,100)=true` in an Accepted Studio read.
+- **Next:** owner calls `poll()` on the **Lab contract** `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` (Normal / Full Consensus), waits for **FINALIZED** and supplies Explorer details, `status()`, `audit_at(3)`.
+- **Expected:** `poll()` returns **`"RESTRICTED"`**; health `OK`, version `2`, revision `4`, caps `[5000,15000,0]`, `pending=false`. `audit_at(3).kind=TIGHTENED` and `policy_version=2`.
+- **Boundary reads after V2 finality:** `can_execute(agent,"SEND",8000) => false` and `can_execute(agent,"SEND",4000) => true`, provided evidence is fresh. No real funds move.
+- **Rollback Test E should NOT be started yet:** leave V2 bytes at the Lab URL until the tightened V2 write has finalized and its state, audit and permissions are recorded. Then only the Lab source can be rolled back to version 1 to test `FROZEN_ROLLBACK`.
+- **Isolation check:** The independent original demo's `fix/security-hardening-v1/examples/policy_v1.txt` was verified still at policy V3. Never change the main demo contract address `0xC67f64634b603cF3fe62fD3447FEedb3E4707E56` or its monitored source.
