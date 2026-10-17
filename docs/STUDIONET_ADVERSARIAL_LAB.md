@@ -79,7 +79,7 @@ Use `contracts/consumer_fixture.py` as a second contract deployed on Studionet w
 | --- | --- | --- | --- | --- | --- |
 | Lab deployment + baseline | Lab V1 published in branch | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`poll()` FINALIZED](https://explorer-studio.genlayer.com/tx/0xb3fd92a84b91c250c9dc2e75df55646f2db3dff6c0380032add7275c6672f943) (tester-transcribed Explorer details) | `ACTIVE`, V1 caps `[10000,25000,0]`, `audit_at(0)=INITIALIZED`, revision 1 | BASELINE PASS |
 | Same-version conflict / recovery | Mutation `a247ed8`, restored `c347022` | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`UNRESOLVED` FINALIZED](https://explorer-studio.genlayer.com/tx/0xa26822c69c44da50da6ae7fa564a83ec6498ac672510293f8e1aae72ce0cd59c); [`ACTIVE` recovery FINALIZED](https://explorer-studio.genlayer.com/tx/0xe3c1b26cdbaa646604634af2efc69d3b361b64d1eb0319f4cc89f81f03999a8c) | version-conflict audit, SEND 100 denied while frozen; post-recovery `health=OK`, revision 3, baseline hash/caps restored | TAMPERING & RECOVERY FULL PASS |
-| V2 tightening + rollback | V2 published `1fc7f8e`, rollback source NOT published | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | V2 tightening `poll()` pending | Expected revision 4 `TIGHTENED`, `[5000,15000,0]` | PREPARED; no V2 on-chain receipt yet |
+| V2 tightening + rollback | V2 published `1fc7f8e`, rollback source NOT published | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | Studio status confirms V2 tightening; `poll()` TX hash/FINALIZED not yet supplied | `health=OK`, `RESTRICTED`, version 2, caps `[5000,15000,0]`, revision 4; `audit_at(3)` pending | V2 STATE PASS; finality/audit/permissions pending |
 | Invalid metadata / conflict / oversize | TBD | TBD | TBD | TBD | PENDING |
 | V3 stale widening approval | TBD | TBD | TBD | TBD | PENDING |
 | Pause + recover | TBD | TBD | TBD | TBD | PENDING |
@@ -302,3 +302,30 @@ The recovered source and quote digests **exactly match** the original `audit_at(
 - **Boundary reads after V2 finality:** `can_execute(agent,"SEND",8000) => false` and `can_execute(agent,"SEND",4000) => true`, provided evidence is fresh. No real funds move.
 - **Rollback Test E should NOT be started yet:** leave V2 bytes at the Lab URL until the tightened V2 write has finalized and its state, audit and permissions are recorded. Then only the Lab source can be rolled back to version 1 to test `FROZEN_ROLLBACK`.
 - **Isolation check:** The independent original demo's `fix/security-hardening-v1/examples/policy_v1.txt` was verified still at policy V3. Never change the main demo contract address `0xC67f64634b603cF3fe62fD3447FEedb3E4707E56` or its monitored source.
+
+### Test D — V2 tightening state observed (tester Studio status, 2026-10-17)
+
+The tester supplied the following `status()` readback from the isolated Lab instance `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` after the version-2 policy was published at the pinned Lab URL.
+
+| Field | Observed |
+| --- | --- |
+| `authority_url` | `https://raw.githubusercontent.com/bearbaba/DRAIL/studionet-adversarial-lab/examples/adversarial/current_policy.txt` |
+| `owner` / `monitor` / `agent` | `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb` |
+| `chain_id` | `61999` |
+| `initialized` | `true` |
+| `health` | `OK` |
+| `policy_status` | **`RESTRICTED`** |
+| `evidence_fresh` | `true` at readback |
+| `last_policy_version` | `2` |
+| `send_cents` / `swap_cents` / `bridge_cents` | **`5000 / 15000 / 0`** |
+| `revision` | `4` |
+| `pending` | `false` |
+| `pending_caps` | `[0,0,0]` |
+| `last_verified_at` | `1792213234` |
+| `last_source_hash` | `87853722863dadb7fefd17e5e136387046caa78e6f16f5e273cfd785168ec4d2` |
+
+The current GitHub raw source is verified to be version 2, SEND $50, SWAP $150 and BRIDGE prohibited, byte-identical to archived `03_tightened_v2.txt`. State matches the expected monotonic tightening applied without staged widening.
+
+**Evidence grade:** V2 **state PASS** on the tester's Studio status. The tester has NOT yet supplied the associated `poll()` Explorer TX hash / explicit `FINALIZED` receipt, `audit_at(3)`, or the post-tightening SEND $80 denied / SEND $40 allowed boundary results. Do not claim that those checks have already occurred.
+
+**Before rollback Test E:** collect the V2 `poll()` Explorer TX and confirm `FINALIZED`, `audit_at(3).kind=TIGHTENED` with version 2, then `can_execute(agent,"SEND",8000)=false` and `can_execute(agent,"SEND",4000)=true` while `evidence_fresh=true`. Only then deliberately publish archived `04_rollback_v1.txt` at the Lab-only URL. The original V3 demo stays unchanged.
