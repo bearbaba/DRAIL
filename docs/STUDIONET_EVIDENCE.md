@@ -59,13 +59,29 @@ Full equivalence-principle return value reproduced by the tester:
 ### Outstanding live cases
 
 - [x] Tester inspected Explorer and supplied `poll()` status **FINALIZED**, GenVM **SUCCESS**, consensus **Accepted** (five initial validators). Independent external retrieval of the Explorer page still pending.
-- [ ] Record `audit_at(0)` (quote evidence, revision, provenance).
-- [ ] `can_execute(agent, "SEND", 8000)` => true while policy verification remains fresh.
-- [ ] `can_execute(agent, "SEND", 12000)` => false.
+- [x] Tester supplied `audit_at(0)` and confirmed `INITIALIZED`, revision 1, policy version 1, all three source quotes and the expected digest.
+- [x] `can_execute(agent, "SEND", 8000)` => `true` (reported from Studio Accepted read).
+- [x] `can_execute(agent, "SEND", 12000)` => `false` (reported from Studio Accepted read).
 - [ ] `can_execute(agent, "BRIDGE", 100)` => false.
 - [ ] Tighten version 2 **at the same pinned URL**; expected caps: 5000 / 15000 / 0; record tx and verify finality.
 - [ ] Stage version 3; expected `PENDING_WIDENING`, no increases effective before owner approval.
 - [ ] Reject unauthorized approval; approve by owner with fresh same-policy observation.
 - [ ] Verify source rollback/failure/contradictions and consumer fixture, with transaction hashes and receipts.
 
-**Do not change `examples/policy_v1.txt` in the connected branch until all V1 snapshots and `can_execute` checks have been recorded.** Updating that path is a live policy change for this deployed demo instance.
+**Version-1 snapshot is archived at `examples/archive/policy_v1_finalized_2026-10-17.txt`, plus its original commit SHA.** The contract's pinned `examples/policy_v1.txt` path is a deliberately mutable *live policy endpoint*; changing that path to version 2 triggers the next consensus case. The live endpoint filename is historical, not a guarantee that its content remains at version 1. Tester responses for SWAP and BRIDGE were provided without their original input fields, so those checks remain conditional until independently repeated with recorded inputs.
+
+### User-supplied on-chain audit record (2026-10-17)
+
+- `actor`: `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb`
+- `kind`: `INITIALIZED`; `revision`: `1`; `policy_version`: `1`
+- `send_cents`: `10000`, quote: `Agents may SEND up to $100.00 per operation.`
+- `swap_cents`: `25000`, quote: `Agents may SWAP up to $250.00 per operation.`
+- `bridge_cents`: `0`, quote: `BRIDGE is prohibited.`
+- `source_sha256`: `5a51bed000831d0bef023e0be671439386addf2217f0afea97de927c3f145c81`
+- `quote_sha256`: `87b1fa57d2a2c63bb0bc3a376af9d96b604fed653c40782cfca3089a92e2ec1c`
+
+### Tightening V2 preparation
+
+- Original V1 copied verbatim to `examples/archive/policy_v1_finalized_2026-10-17.txt` prior to changing the live GitHub URL.
+- Expected V2 `policy_version=2`, `send_cents=5000`, `swap_cents=15000`, `bridge_cents=0`, result `RESTRICTED`, `revision=2`.
+- Live V2 transaction ID and finality: **PENDING** — do not describe this case as passed until an actual receipt and readback are recorded.
