@@ -45,7 +45,7 @@ For each test: (1) record policy source commit and URL; (2) allow GitHub raw pro
 | D — tightening | `03_tightened_v2.txt` | Owner `poll()` | `RESTRICTED`, caps `[5000,15000,0]` without approval |
 | E — rollback | `04_rollback_v1.txt` | Owner `poll()` | `UNRESOLVED`, `FROZEN_ROLLBACK`; V2 caps preserved but denied |
 | F — recovery | Restore `03_tightened_v2.txt` | Owner `poll()` | Health `OK`, effective V2 caps restored |
-| G — wrong agent | `05_wrong_agent_v2.txt` | Owner `poll()` | `FROZEN_UNCLEAR`; verified envelope does not match constructor agent |
+| G — wrong agent | [FINALIZED `poll()`](https://explorer-studio.genlayer.com/tx/0x22ee0b9ec759f7f78ebc135d227660bc4cc6732bf456ee8c4710ddce18c388c6) | `UNCLEAR`, `UNRESOLVED`, revision 7; accepted V2 caps/hash preserved | State/finality PASS; `audit_at(6)` & denied `can_execute` pending |
 | H — wrong chain | Restore V2, then publish `06_wrong_chain_v2.txt` | Poll after healthy recovery | `FROZEN_UNCLEAR`, execution frozen |
 | I — duplicate rule | Restore V2, then publish `07_duplicate_send_v2.txt` | Poll after healthy recovery | `FROZEN_UNCLEAR`, conflicting SEND clauses rejected |
 | J — oversized source | Restore V2, then publish `08_oversized_v2.txt` | Poll after healthy recovery | `FROZEN_UNCLEAR`; full file exceeds 8192 UTF-8 bytes |
@@ -529,7 +529,41 @@ The tester then called the prescribed view `can_execute(who=0x4C7cb73aC8F8999af2
 - **Predicted state after a FINALIZED, successful `poll()`:** return `"UNRESOLVED"`, `health=UNRESOLVED`, `evidence_fresh=false`, **last accepted version stays 2**, accepted V2 digest unchanged, effective caps remain `[5000,15000,0]`, `revision=7`, `pending=false`, historical `policy_status=RESTRICTED`.
 - **Predicted audit:** `audit_at(6).kind=FROZEN_UNCLEAR`, `revision=7`, `policy_version=2`, effective V2 caps preserved. The audit may have no quotes / quote digest for an `UNCLEAR` source: capture the actual record rather than assuming those fields.
 - **Predicted permission read:** `can_execute(who=0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb,action="SEND",amount_cents=100) = false` after the finalized freeze.
-- **No live Test G Explorer TX or chain readback has been provided yet.** These are only code-path expectations and the published-source evidence, not a live test PASS.
+- **Update:** The tester has now provided a FINALIZED Test G Explorer TX and on-chain status proving `UNCLEAR`, `UNRESOLVED`, revision 7, and preserved V2 caps/hash. `audit_at(6)` and fail-closed `can_execute` are still awaited; do not mark the entire test FULL PASS yet.
 - **Isolation guard:** the established demo URL on `fix/security-hardening-v1` was independently read and remains original **V3**, SEND $200 / SWAP $350. Never modify or poll the original demo contract for these tests.
 
-**Next requested evidence:** on the same Lab instance, run `poll()` as owner in Normal/Full Consensus; wait for explicit **FINALIZED**, then send `status()`, `audit_at(6)`, and `can_execute(agent,"SEND",100)`. Do **not** restore V2 or publish the wrong-chain fixture until the wrong-agent denial is captured and recorded.
+**Next requested evidence:** `poll()` is already FINALIZED and `status()` recorded. Now read `audit_at(6)` and `can_execute(agent,"SEND",100)` on the SAME Lab contract. Do **not** restore V2 or publish wrong-chain source until denial checks are captured.
+
+### Test G — FINALIZED wrong-agent rejection and state readback (2026-10-17)
+
+**Transaction:** https://explorer-studio.genlayer.com/tx/0x22ee0b9ec759f7f78ebc135d227660bc4cc6732bf456ee8c4710ddce18c388c6
+
+**Tester-transcribed Explorer receipt:** TX **FINALIZED**; contract method `poll()`; from `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb` to `0x4c80788eA0A3c80906bd365b95f4813ea64D215a`; nonce `359`; created Oct 17, 2026 at 12:21:48 PM (Explorer displayed); Normal execution with five initial validators, rotation 0, Consensus **Accepted**, GenVM **SUCCESS**, return **`"UNRESOLVED"`**.
+
+Consensus equivalence output:
+```json
+{"result":"UNCLEAR","source_hash":"ad37adfe469be68acbce55e3bce8542be6664090e998142894463fd54b62f050"}
+```
+
+**Tester-supplied on-chain `status()`:**
+
+| Field | Observed |
+| --- | --- |
+| `initialized` | `true` |
+| `health` | **`UNRESOLVED`** |
+| `evidence_fresh` | **`false`** |
+| `last_policy_version` | **`2`** |
+| `last_source_hash` | **`87853722863dadb7fefd17e5e136387046caa78e6f16f5e273cfd785168ec4d2`** (last accepted V2, unchanged) |
+| `last_verified_at` | `1792214100` (previous accepted verification, unchanged) |
+| `policy_status` | `RESTRICTED` (last accepted label; **NOT** current permission to execute) |
+| `revision` | **`7`** |
+| `send_cents`, `swap_cents`, `bridge_cents` | **`5000 / 15000 / 0`** (unchanged approved V2) |
+| `pending` | `false` |
+| `agent` / `monitor` / `owner` | `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb` |
+| `chain_id` | `61999` |
+
+**Interpretation:** the document's header binds it to the wrong `AGENT`, so the deterministic metadata check returns `UNCLEAR` even though amounts in the content match V2. The last approved V2 source digest and effective caps were *not* replaced; the contract has health `UNRESOLVED`.
+
+**Evidence grade: Wrong-Agent Detection/Freeze PASS** using a tester-transcribed FINALIZED TX and contract status readback; full Test G not yet closed. **Next:** `audit_at(6)` should show `kind=FROZEN_UNCLEAR`, revision `7`, and previously approved caps; `can_execute(who=0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb,action="SEND",amount_cents=100)` should be **`false`**.
+
+**IMPORTANT:** Keep the same wrong-agent source live until these two reads are recorded. Do not modify the main demo source or deployed contract. A fail-closed contract view is a permission check, not a funds-transfer test.
