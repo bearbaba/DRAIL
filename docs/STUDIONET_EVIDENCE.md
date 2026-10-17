@@ -1,0 +1,370 @@
+# DRAIL Studionet evidence ledger
+
+This ledger separates **observed state submitted by the tester**, **automated CI tests**, and **independently verified finality**. Never interpret the presence of a transaction hash as proof of `FINALIZED`.
+
+## Deployment and initial policy activation — 2026-10-17
+
+- Network: GenLayer Studionet (`chain_id=61999`)
+- Contract: `0xC67f64634b603cF3fe62fD3447FEedb3E4707E56`
+- Studio import: https://studio.genlayer.com/?import-contract=0xC67f64634b603cF3fe62fD3447FEedb3E4707E56
+- Bootstrap `poll()` transaction (tester-provided): `0xbe88150877b36ce3c9b13b89b69340d606242b0c9e0b061c723a08d9ee23cdf2`
+- Explorer transaction details provided by tester: https://explorer-studio.genlayer.com/tx/0xbe88150877b36ce3c9b13b89b69340d606242b0c9e0b061c723a08d9ee23cdf2
+- Source URL: https://raw.githubusercontent.com/bearbaba/DRAIL/fix/security-hardening-v1/examples/policy_v1.txt
+- Agent: `0x3333333333333333333333333333333333333333`
+- Owner and monitor: `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb`
+
+### Readback after `poll()` (reported by tester)
+
+| Field | Readback |
+| --- | --- |
+| `initialized` | `true` |
+| `health` | `OK` |
+| `policy_status` | `ACTIVE` |
+| `last_policy_version` | `1` |
+| `send_cents` | `10000` |
+| `swap_cents` | `25000` |
+| `bridge_cents` | `0` |
+| `revision` | `1` |
+| `evidence_fresh` | `true` at time of readback |
+| `last_verified_at` | `1792204573` |
+| `last_source_hash` | `5a51bed000831d0bef023e0be671439386addf2217f0afea97de927c3f145c81` |
+| `pending` | `false` |
+
+### Transaction details copied from GenLayer Explorer by tester
+
+| Explorer field | Reported value |
+| --- | --- |
+| Transaction status | **FINALIZED** |
+| Execution mode | Normal (Full Consensus) |
+| GenVM execution | SUCCESS |
+| Method | `poll` |
+| Return value | `"INITIALIZED"` |
+| Consensus result | Accepted |
+| Initial validators | 5 |
+| Rotation count | 0 |
+| Created at (Explorer display) | 2026-10-17 09:36:13 |
+| Sender | `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb` |
+| Target | `0xC67f64634b603cF3fe62fD3447FEedb3E4707E56` |
+| Value | 0 GEN |
+| Transaction nonce | 348 |
+
+Full equivalence-principle return value reproduced by the tester:
+
+```json
+{"bridge_cents":0,"bridge_quote":"BRIDGE is prohibited.","policy_version":1,"result":"VALID","send_cents":10000,"send_quote":"Agents may SEND up to $100.00 per operation.","source_hash":"5a51bed000831d0bef023e0be671439386addf2217f0afea97de927c3f145c81","swap_cents":25000,"swap_quote":"Agents may SWAP up to $250.00 per operation."}
+```
+
+**Evidence level:** Tester-supplied full Studio state readback **plus Explorer transaction-details transcription explicitly showing FINALIZED, SUCCESS and consensus Accepted**. This supports a finalized, successful first policy activation on Studionet. The Explorer SPA was not independently accessible via automated web retrieval, so the original transaction page should be reviewed directly by stewards. It does not prove the full version-change lifecycle, individual validator votes, publisher signatures, or production readiness. The deployed bytecode/source-to-commit linkage has not yet been independently attested.
+
+### Outstanding live cases
+
+- [x] Tester inspected Explorer and supplied `poll()` status **FINALIZED**, GenVM **SUCCESS**, consensus **Accepted** (five initial validators). Independent external retrieval of the Explorer page still pending.
+- [x] Tester supplied `audit_at(0)` and confirmed `INITIALIZED`, revision 1, policy version 1, all three source quotes and the expected digest.
+- [x] `can_execute(agent, "SEND", 8000)` => `true` (reported from Studio Accepted read).
+- [x] `can_execute(agent, "SEND", 12000)` => `false` (reported from Studio Accepted read).
+- [ ] `can_execute(agent, "BRIDGE", 100)` => false.
+- [x] Tighten version 2 at the same pinned URL; user-provided Studio `status()` confirms caps 5000 / 15000 / 0, `RESTRICTED`, `revision=2`, `pending=false`. **V2 poll transaction hash supplied; its FINALIZED status not independently verified.**
+- [ ] Stage version 3; expected `PENDING_WIDENING`, no increases effective before owner approval.
+- [ ] Reject unauthorized approval; approve by owner with fresh same-policy observation.
+- [ ] Verify source rollback/failure/contradictions and consumer fixture, with transaction hashes and receipts.
+
+**Version-1 snapshot is archived at `examples/archive/policy_v1_finalized_2026-10-17.txt`, plus its original commit SHA.** The contract's pinned `examples/policy_v1.txt` path is a deliberately mutable *live policy endpoint*; changing that path to version 2 triggers the next consensus case. The live endpoint filename is historical, not a guarantee that its content remains at version 1. Tester responses for SWAP and BRIDGE were provided without their original input fields, so those checks remain conditional until independently repeated with recorded inputs.
+
+### User-supplied on-chain audit record (2026-10-17)
+
+- `actor`: `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb`
+- `kind`: `INITIALIZED`; `revision`: `1`; `policy_version`: `1`
+- `send_cents`: `10000`, quote: `Agents may SEND up to $100.00 per operation.`
+- `swap_cents`: `25000`, quote: `Agents may SWAP up to $250.00 per operation.`
+- `bridge_cents`: `0`, quote: `BRIDGE is prohibited.`
+- `source_sha256`: `5a51bed000831d0bef023e0be671439386addf2217f0afea97de927c3f145c81`
+- `quote_sha256`: `87b1fa57d2a2c63bb0bc3a376af9d96b604fed653c40782cfca3089a92e2ec1c`
+
+### Tightening V2 preparation
+
+- Original V1 copied verbatim to `examples/archive/policy_v1_finalized_2026-10-17.txt` prior to changing the live GitHub URL.
+- Expected V2 `policy_version=2`, `send_cents=5000`, `swap_cents=15000`, `bridge_cents=0`, result `RESTRICTED`, `revision=2`.
+- Live V2 TX: 0x1c795d57bc357c98024c993424fd47a88b118a3ab3de2b5030f2754f37ff3df0. User supplied Explorer link; separate FINALIZED check outstanding.
+
+### Policy V2 tightening — Studio state readback submitted by tester
+
+The tester submitted the on-chain read method `status()` result after polling the same pinned URL, now serving policy version 2. No upgrade or redeployment was reported.
+
+| Field | V2 readback |
+| --- | --- |
+| `initialized` | `true` |
+| `health` | `OK` |
+| `policy_status` | `RESTRICTED` |
+| `last_policy_version` | `2` |
+| `revision` | `2` |
+| `send_cents` | `5000` |
+| `swap_cents` | `15000` |
+| `bridge_cents` | `0` |
+| `pending` | `false` |
+| `evidence_fresh` | `true` at time of tester's readback |
+| `last_source_hash` | `ad37adfe469be68acbce55e3bce8542be6664090e998142894463fd54b62f050` |
+| `last_verified_at` | `1792207351` |
+| `max_evidence_age_seconds` | `3600` |
+| `agent` | `0x3333333333333333333333333333333333333333` |
+| `owner` and `monitor` | `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb` |
+
+This is evidence that an externally changed policy activated a *tightening* state transition on the same contract; **the V2 TX hash was supplied, but Explorer FINALIZED status has not yet been verified**.
+
+### V2 access readbacks submitted by tester
+
+The tester was directed to retain `agent=0x3333333333333333333333333333333333333333` and `action=SEND`, then reported these two successive responses without reiterating the input fields:
+
+| Assumed input | Reported Studio read result | Expected |
+| --- | --- | --- |
+| `can_execute(agent, "SEND", 8000)` | `false` | `false` |
+| `can_execute(agent, "SEND", 4000)` | `true` | `true` |
+
+**Qualification:** The messages gave amounts and response values but omitted the `who` and `action` inputs. These match the prescribed tests *assuming the agent and SEND action were unchanged*. Accepted-state readback is not a transaction FINALIZED receipt. V2 poll TX link and audit_at(1) received; finality verification still pending, then V3 staged widening.
+
+### V2 audit_at(1) — tester readback (2026-10-17)
+
+- V2 poll TX: https://explorer-studio.genlayer.com/tx/0x1c795d57bc357c98024c993424fd47a88b118a3ab3de2b5030f2754f37ff3df0
+- actor: 0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb
+- kind: **TIGHTENED**; policy_version: **2**; revision: **2**
+- send_cents: **5000**; send_quote: "Agents may SEND up to $50.00 per operation."
+- swap_cents: **15000**; swap_quote: "Agents may SWAP up to $150.00 per operation."
+- bridge_cents: **0**; bridge_quote: "BRIDGE is prohibited."
+- source_sha256: ad37adfe469be68acbce55e3bce8542be6664090e998142894463fd54b62f050
+- quote_sha256: b972dc7aa95303ee14fa397c589f75c5fb68b9d9cad19f2d87a735174d4f1134
+
+**Assessment:** User-provided audit and status demonstrate expected effective tightening and full source quotes. Linked Explorer FINALIZED status cannot be independently verified from the available page response.
+
+**Version-2 snapshot:** examples/archive/policy_v2_tightened_2026-10-17.txt, saved before preparing version 3.
+
+### Version-3 widening source published (2026-10-17)
+
+- Mutable monitored path: https://raw.githubusercontent.com/bearbaba/DRAIL/fix/security-hardening-v1/examples/policy_v1.txt
+- Publish commit: d85c81d7018c0ac0d7cf441824b0407717baf2d4
+- Version: 3. Proposed limits: SEND 20000 cents, SWAP 35000 cents, BRIDGE 2500 cents.
+- Expected first poll return: `WIDENING_PENDING`; `policy_status=PENDING_WIDENING`, `pending=true`, `pending_policy_version=3`, `pending_caps=[20000,35000,2500]`.
+- Expected **effective** limits before explicit owner approval: `[5000,15000,0]` unchanged; `revision=3`; `audit_at(2).kind=WIDENING_PENDING`.
+- Expected blocked before approval: SEND 8000 (false), BRIDGE 100 (false). Permitted while evidence fresh: SEND 4000 (true).
+- **Status: V3 state readback and audit_at(2) submitted, with expected PENDING_WIDENING and effective V2 limits preserved. V3 poll TX link supplied; external FINALIZED proof still pending.**
+- The V2 source was archived at `examples/archive/policy_v2_tightened_2026-10-17.txt` before this source edit.
+
+
+### V3 widening state readback — tester submission
+
+The tester submitted the result of `status()` after invoking the V3 `poll()` against the **same deployed contract**.
+
+| Field | Tester readback |
+| --- | --- |
+| `last_policy_version` | `3` |
+| `policy_status` | `PENDING_WIDENING` |
+| `revision` | `3` |
+| `health` | `OK` |
+| `evidence_fresh` | `true` at time of read |
+| `pending` | `true` |
+| `pending_policy_version` | `3` |
+| `pending_caps` | `[20000,35000,2500]` |
+| `send_cents` (effective) | `5000` |
+| `swap_cents` (effective) | `15000` |
+| `bridge_cents` (effective) | `0` |
+| `last_source_hash` | `9e655041844ee3255486b4094dbb5badb6235532497d5155daf84a2ccedfc2fb` |
+| `pending_source_hash` | `9e655041844ee3255486b4094dbb5badb6235532497d5155daf84a2ccedfc2fb` |
+| `last_verified_at` | `1792207878` |
+| `authority_url` | `https://raw.githubusercontent.com/bearbaba/DRAIL/fix/security-hardening-v1/examples/policy_v1.txt` |
+
+**Interpretation:** V3 proposes wider SEND ($200), SWAP ($350), and BRIDGE ($25) caps, but effective rights remain at V2 ($50, $150, $0). This passes the state-level widening-gate assertion and preserves denial-by-default for new permissions. The V3 transaction URL and `audit_at(2)` record have been supplied; the Explorer FINALIZED state could not be independently fetched. Two provisional `can_execute` results during pending widening were supplied without reprinting the full `who`/`action` inputs. Do not count owner authorization as passed until tested.
+
+**Next gate:** Confirm Explorer FINALIZED for V3 poll; test unauthorized `approve_widening()` with a different wallet and confirm state unchanged, followed by owner approval against unchanged source hash. The three permission readbacks have been supplied.
+
+### V3 permission checks while widening pending — user-reported results
+
+User reported these values after being instructed to keep agent `0x3333333333333333333333333333333333333333` and `action=SEND`:
+
+| Test (assuming retained who/action) | User-reported read result | Expected |
+| --- | --- | --- |
+| `can_execute(agent, "SEND", 8000)` | `false` | `false` |
+| `can_execute(agent, "SEND", 4000)` | `true` | `true` |
+
+These match V2 effective limits held during `PENDING_WIDENING` despite V3 proposed SEND 20000 cents. Individual messages did not contain the `who` or `action` fields, so those inputs remain assumed. Outstanding before owner approval: verify V3 poll FINALIZED and obtain a rejected approval attempt from a non-owner account. The BRIDGE test was reported as `false` using `BRIDGE 100`, without reprinting the wallet input.
+
+### V3 BRIDGE permission check while widening pending — tester readback
+
+- Tester supplied action `BRIDGE`, `amount_cents=100` and Studio read result `false`.
+- Assumes the same previously configured agent was supplied in the `who` field; the message omitted the actual `who` value.
+- This matches the still-effective V2 `bridge_cents=0` despite V3 proposal `pending_caps[2]=2500`.
+- `false` alone does not prove the specific blocking reason if evidence was no longer fresh; correlate with `status.evidence_fresh` from the time of testing.
+
+### V3 poll transaction and audit_at(2) — tester evidence (2026-10-17)
+
+- Poll transaction: https://explorer-studio.genlayer.com/tx/0xb56ed7007dcac2fe569d953233d1b79f1337a34c8187215f72044c18283ccba1
+- Tester did not quote the Explorer FINALIZED status; fetching the Explorer transaction URL programmatically returned an error. This record **does not independently establish finality**.
+- `actor`: `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb`
+- `kind`: `WIDENING_PENDING`; `policy_version`: `3`; `revision`: `3`
+- Effective `send_cents`: `5000` with proposed quote: "Agents may SEND up to $200.00 per operation."
+- Effective `swap_cents`: `15000` with proposed quote: "Agents may SWAP up to $350.00 per operation."
+- Effective `bridge_cents`: `0` with proposed quote: "Agents may BRIDGE up to $25.00 per operation."
+- `source_sha256`: `9e655041844ee3255486b4094dbb5badb6235532497d5155daf84a2ccedfc2fb`
+- `quote_sha256`: `489b29c4799015e5f6114d1148d1c80e7ac9ef44ff3a2619d4bdc3f925277d9e`
+
+The critical distinction is between **proposed policy quotes** and **currently effective caps**. V3's new privileges remain gated: effective rights are unchanged from V2, and `pending=true` until owner approval. No widening approval has been reported. Source at monitored path must remain at V3 for a correct source recheck during `approve_widening()`.
+
+#### Approval tests awaiting evidence
+
+1. **Executed:** `approve_widening()` from a non-owner wallet. Studio receipt shows `ACCEPTED` consensus, `ERROR` execution, `rollback owner only` from five validators all marked Agree. Post-error `status()` readback now received: `pending=true`, `policy_status=PENDING_WIDENING`, `revision=3`, effective caps unchanged.
+2. **Executed:** tester supplied owner `approve_widening()` TX and post-call `status()` confirming effective caps `[20000,35000,2500]`, `pending=false`, `policy_status=ACTIVE`, `revision=4`. `audit_at(3)` still pending. The contract implementation refetches source and requires identical digest, version and proposed caps.
+3. Record TX hashes and FINALIZED/failed status for both calls.
+
+### Unauthorized approve_widening — negative security test (tester screenshot)
+
+- TX ID transcribed from screenshot: `0x3d5964b46ce68a587281cbb52fd4d8dfdf13a2f3a630b93223dcb4417a8c5d1d`
+- Explorer URL (not independently checked): https://explorer-studio.genlayer.com/tx/0x3d5964b46ce68a587281cbb52fd4d8dfdf13a2f3a630b93223dcb4417a8c5d1d
+- Input: `{"method":"approve_widening"}`
+- Transaction status shown in Studio: **ACCEPTED** (consensus outcome)
+- Execution result shown in Studio: **ERROR**, output `None`
+- Validator set: **five entries**, each showed `[rollback] owner only` and `Agree`
+- Interpretation: consensus agreed that the unauthorized invocation must roll back; this is **not** a successful widening approval. The screenshot does not reveal the sender's address. The error is strong evidence that the caller was not `owner` as checked by the contract.
+- **Post-transaction verification completed by tester:** a fresh `status()` readback confirms `pending=true`, `policy_status=PENDING_WIDENING`, effective caps `[5000,15000,0]`, `revision=3`, `health=OK`, `evidence_fresh=true`, unchanged V3 pending source hash. The transaction's finality status in Explorer has not been independently fetched.
+
+**Positive owner-approval test state readback now supplied:** transaction link and `status()` confirm widening was activated with caps `[20000,35000,2500]` and `pending=false`. Remaining: confirm Explorer finality and perform post-approval permission checks. `audit_at(3)` has now been provided and matches `WIDENED_BY_OWNER`.
+
+### Unauthorized approval — verified state unchanged after rollback
+
+The tester submitted the full `status()` JSON after the non-owner `approve_widening()` attempt. Confirmed no on-chain permission increase, no revision increment, and no removal of pending proposal:
+
+| Field | Post-rollback state |
+| --- | --- |
+| `policy_status` | `PENDING_WIDENING` |
+| `pending` | `true` |
+| `pending_policy_version` | `3` |
+| `pending_caps` | `[20000,35000,2500]` |
+| `send_cents` / `swap_cents` / `bridge_cents` | `5000 / 15000 / 0` |
+| `revision` | `3` |
+| `health` | `OK` |
+| `evidence_fresh` | `true` (at read time) |
+| `pending_source_hash` | `9e655041844ee3255486b4094dbb5badb6235532497d5155daf84a2ccedfc2fb` |
+
+This completes the negative owner-gate test at the contract-state level. Next: authorized owner approval and audit record verification.
+
+### Owner approve_widening — successful V3 state transition (tester readback)
+
+- TX link provided by tester: https://explorer-studio.genlayer.com/tx/0x78addae43112dfeeb2264a7c33a53f73e758d19cc857689bd1dd56a8c0c077d3
+- Contract remains `0xC67f64634b603cF3fe62fD3447FEedb3E4707E56` on Studionet.
+- Observed `status()` after the owner's invocation:
+
+| Field | On-chain Studio readback |
+| --- | --- |
+| `last_policy_version` | `3` |
+| `policy_status` | `ACTIVE` |
+| `pending` | `false` |
+| `pending_caps` | `[0,0,0]` |
+| `pending_policy_version` | `0` |
+| `pending_source_hash` | empty |
+| `send_cents` | `20000` |
+| `swap_cents` | `35000` |
+| `bridge_cents` | `2500` |
+| `health` | `OK` |
+| `evidence_fresh` | `true` at time of read |
+| `revision` | `4` |
+| `last_source_hash` | `9e655041844ee3255486b4094dbb5badb6235532497d5155daf84a2ccedfc2fb` |
+| `last_verified_at` | `1792208642` |
+
+**Assessment:** This is convincing state-level evidence that pending V3 limits became effective following the authorized owner approval, unlike the unauthorized roll-back which left the caps unchanged. The policy version stays `3` because approval does not publish a new policy version; revision increases to `4`. The active source hash matches the staged V3 hash.
+
+**Limitations:** The tester supplied refreshed owner-approval Explorer transaction details explicitly showing **FINALIZED** (previously ACCEPTED). GenVM execution was **SUCCESS**, consensus result **Accepted**, and the result was **ACTIVE**. No independent finality claim is made. `audit_at(3)` has now been supplied and confirms `WIDENED_BY_OWNER`, revision 4 and V3 caps. Post-approval `can_execute` permission checks are still pending.
+
+**Next steps:** inspect Explorer FINALIZED status; while `evidence_fresh=true` test `can_execute(agent,"SEND",8000)=true`, `can_execute(agent,"SEND",25000)=false`, `can_execute(agent,"BRIDGE",100)=true`, and `can_execute(agent,"BRIDGE",3000)=false`. All rights are strictly authorization checks; the fixture does not transfer funds. Keep the monitored source at policy version 3.
+
+### Owner approval — detailed Explorer receipt (tester transcription)
+
+The tester copied Explorer transaction details on 2026-10-17 for transaction:
+https://explorer-studio.genlayer.com/tx/0x78addae43112dfeeb2264a7c33a53f73e758d19cc857689bd1dd56a8c0c077d3
+
+| Explorer field | Tester-provided result |
+| --- | --- |
+| **Status** | **FINALIZED** (confirmed by tester's later copied Explorer details; initially ACCEPTED) |
+| From (owner) | `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb` |
+| To (DRAIL) | `0xC67f64634b603cF3fe62fD3447FEedb3E4707E56` |
+| Method | `approve_widening` |
+| Created at (Explorer display) | Oct 17, 2026, 10:44:02 AM |
+| Nonce | `351` |
+| Execution mode | Normal |
+| Initial validators | `5` |
+| Rotation count | `0` |
+| Consensus result | **Accepted** |
+| GenVM execution | **SUCCESS** |
+| Execution return value | `"ACTIVE"` |
+
+Equivalence-principle output, normalized JSON copied from tester's receipt:
+
+```json
+{"bridge_cents":2500,"bridge_quote":"Agents may BRIDGE up to $25.00 per operation.","policy_version":3,"result":"VALID","send_cents":20000,"send_quote":"Agents may SEND up to $200.00 per operation.","source_hash":"9e655041844ee3255486b4094dbb5badb6235532497d5155daf84a2ccedfc2fb","swap_cents":35000,"swap_quote":"Agents may SWAP up to $350.00 per operation."}
+```
+
+The result confirms that source was re-observed with proposed V3 caps, quotes and the same digest that was staged. Combined with the separately provided state readback (`ACTIVE`, no pending proposal, `revision=4`), this supports an accepted and successfully executed owner-gated approval. The tester subsequently supplied a refreshed Explorer Overview explicitly showing **Status: FINALIZED**, so the finality requirement for this owner-approval transaction is now satisfied.
+
+**Audit confirmed by tester:** `audit_at(3)` returned `WIDENED_BY_OWNER`, revision 4, policy version 3, effective caps `[20000,35000,2500]`, source and quote hashes matching the V3 staged proposal. The four post-approval authorization boundary checks have now been reported by the tester; finality verification still pending.
+
+### Audit #4 — owner-authorized widening directly observed by tester (2026-10-17)
+
+Tester submitted `audit_at(3)` after calling `approve_widening()` as the authorized owner.
+
+| Recorded field | Observed value |
+| --- | --- |
+| `actor` | `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb` |
+| `kind` | **WIDENED_BY_OWNER** |
+| `policy_version` | `3` |
+| `revision` | `4` |
+| `send_cents` | `20000` |
+| `swap_cents` | `35000` |
+| `bridge_cents` | `2500` |
+| `send_quote` | `Agents may SEND up to $200.00 per operation.` |
+| `swap_quote` | `Agents may SWAP up to $350.00 per operation.` |
+| `bridge_quote` | `Agents may BRIDGE up to $25.00 per operation.` |
+| `source_sha256` | `9e655041844ee3255486b4094dbb5badb6235532497d5155daf84a2ccedfc2fb` |
+| `quote_sha256` | `489b29c4799015e5f6114d1148d1c80e7ac9ef44ff3a2619d4bdc3f925277d9e` |
+
+The source and quote digests match the prior `WIDENING_PENDING` audit (`audit_at(2)`). The owner approval execution readback independently reported `policy_status=ACTIVE`, `pending=false`, caps `[20000,35000,2500]`, revision 4. Taken together, this is strong evidence of correct on-chain transition from staged widening to owner-authorized effective rights, supported by a new provenance-preserving audit entry.
+
+#### Confirmed lifecycle and remaining gates
+
+| Revision | Recorded audit kind | Effective SEND / SWAP / BRIDGE (USD cents) | Status |
+| --- | --- | --- | --- |
+| 1 | INITIALIZED | 10000 / 25000 / 0 | Confirmed by tester |
+| 2 | TIGHTENED | 5000 / 15000 / 0 | Confirmed by tester |
+| 3 | WIDENING_PENDING | 5000 / 15000 / 0 | Confirmed by tester |
+| 4 | WIDENED_BY_OWNER | 20000 / 35000 / 2500 | Confirmed by tester |
+
+**Open:** Owner-approval transaction has now been confirmed **FINALIZED** by tester's Explorer details; stale source / rollback / fetch failure adversarial checks and the consumer fixture call are not yet proven on this deployed instance. The four post-approval authorization tests were reported and matched their expected responses (see below). Do not claim mainnet production readiness.
+
+### V3 post-owner-approval permission checks (2026-10-17)
+
+The tester reported four `can_execute` responses after the approved V3 `status()` readback. Tests were requested using the previously configured `agent=0x3333333333333333333333333333333333333333`; the latest Studio messages showed response values and amounts, with action given explicitly for BRIDGE 100. The agent address and the other action labels were not reproduced in the messages, so treat the test input association as user-followed-instruction evidence rather than a complete call trace.
+
+| Prescribed input | Tester response | Expected | Read-test result |
+| --- | --- | --- | --- |
+| `can_execute(agent, "SEND", 8000)` | `true` | `true` | Matches |
+| `can_execute(agent, "SEND", 25000)` | `false` | `false` | Matches |
+| `can_execute(agent, "BRIDGE", 100)` | `true` | `true` | Matches |
+| `can_execute(agent, "BRIDGE", 3000)` | `false` | `false` | Matches |
+
+**Security significance:** SEND 8000 and BRIDGE 100 were denied while V3 widening was staged; after authorized owner approval the same requests were permitted, while requests exceeding approved SEND 20000 and BRIDGE 2500 remained denied. This is a tester-observed authorization outcome at the Studio Accepted read state, not a financial transfer or independently signed execution trace.
+
+**Next live coverage priorities:** Verify time-expiry/fail-closed without mutating the source; exercise same-version conflict/rollback, source-unavailable freeze, and stale pending proposal on a disposable *separate contract or carefully planned follow-on policy versions* so the completed V1→V3 demo remains reproducible. Deploy and test `consumer_fixture.py` for cross-contract enforcement. Keep policy source V3 intact until the evidence plan is agreed.
+
+### Finality upgrade — V3 owner approval (2026-10-17)
+
+On a later review, the tester copied refreshed **GenLayer Explorer transaction details** for:
+
+https://explorer-studio.genlayer.com/tx/0x78addae43112dfeeb2264a7c33a53f73e758d19cc857689bd1dd56a8c0c077d3
+
+- Explorer overview **Status: FINALIZED** (updated from the previously copied **ACCEPTED** status).
+- Transaction method: `approve_widening`; execution mode Normal (Full Consensus).
+- Sender `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb` (contract owner).
+- Target `0xC67f64634b603cF3fe62fD3447FEedb3E4707E56`.
+- Initial validators: **5**; consensus result **Accepted**; rotation count **0**.
+- GenVM Execution Result: **SUCCESS**, Return Value: **"ACTIVE"**.
+- Re-verified consensus result: `VALID`, source digest `9e655041844ee3255486b4094dbb5badb6235532497d5155daf84a2ccedfc2fb`, policy version **3**, caps **20000 / 35000 / 2500**, matching the staged V3 proposal.
+- State and audit corroboration provided earlier: `ACTIVE`, `pending=false`, `revision=4`, `audit_at(3).kind=WIDENED_BY_OWNER`.
+- Post-approval test responses matched SEND $80 allowed, SEND $250 denied, BRIDGE $1 allowed, BRIDGE $30 denied.
+
+**Result:** The authorized, source-rechecking V3 widening transaction is now confirmed **FINALIZED** by the tester's Explorer receipt, with state, audit and authorization behavior all consistent. As with the other user-provided Explorer transcripts, this documentation does not represent an independent third-party attestation of the UI. This confirms the happy-path owner-gated widening flow on Studionet, not production/mainnet security or the outstanding adversarial and downstream integration cases.
+
+**Evidence collection status:** The V1 bootstrap and V3 owner approval have explicit user-transcribed FINALIZED receipts. The V2 tightening and V3 staging have linked poll transactions and matching audit/state readbacks, but their Explorer FINALIZED status has not been independently established in this ledger.

@@ -63,10 +63,10 @@ class FakeSvc:
         return json.dumps(self.response)
 
 
-def fixture_doc(send=100, swap=250, bridge=None):
+def fixture_doc(send=100, swap=250, bridge=None, version=1, agent=AGENT, chain=61999):
     clauses = [
-        f'Agents may SEND up to ${send:.2f} per operation.',
-        f'Agents may SWAP up to ${swap:.2f} per operation.',
+        ('SEND is prohibited.' if send == 0 else f'Agents may SEND up to ${send:.2f} per operation.'),
+        ('SWAP is prohibited.' if swap == 0 else f'Agents may SWAP up to ${swap:.2f} per operation.'),
         ('BRIDGE is prohibited.' if bridge is None else
          f'Agents may BRIDGE up to ${bridge:.2f} per operation.'),
     ]
@@ -74,7 +74,10 @@ def fixture_doc(send=100, swap=250, bridge=None):
     model = dict(result='VALID', send_cents=caps[0], swap_cents=caps[1],
                  bridge_cents=caps[2], send_quote=clauses[0],
                  swap_quote=clauses[1], bridge_quote=clauses[2])
-    return '\n'.join(clauses), model
+    header = ["DRAIL_POLICY_V1", f"POLICY_VERSION: {version}",
+              f"AGENT: {agent}", f"CHAIN_ID: {chain}",
+              "CURRENCY: USD", "STATUS: EFFECTIVE", ""]
+    return '\n'.join(header + clauses), model
 
 
 @pytest.fixture
@@ -83,7 +86,7 @@ def ctx(monkeypatch):
     gl = types.SimpleNamespace()
     gl.Contract = FakeStorageBase
     gl.vm = types.SimpleNamespace(UserError=ValueError)
-    gl.message = types.SimpleNamespace(sender_address=Address(OWNER))
+    gl.message = types.SimpleNamespace(sender_address=Address(OWNER), chain_id=61999)
     gl.public = types.SimpleNamespace(write=lambda fn: fn, view=lambda fn: fn)
     gl.nondet = types.SimpleNamespace(web=types.SimpleNamespace(render=svc.render),
                                      exec_prompt=svc.exec_prompt)
@@ -103,8 +106,8 @@ def ctx(monkeypatch):
     contract = module.Drail('https://policy.example.org/current', Address(AGENT), Address(WATCHER))
     def actor(addr):
         gl.message.sender_address = Address(addr)
-    def set_document(send=100, swap=250, bridge=None):
-        svc.page, svc.response = fixture_doc(send, swap, bridge)
+    def set_document(send=100, swap=250, bridge=None, version=1):
+        svc.page, svc.response = fixture_doc(send, swap, bridge, version=version)
     return contract, svc, actor, set_document
 
 
@@ -130,7 +133,7 @@ def test_tightening_is_immediate_and_poll_idempotent(ctx):
     set_doc()
     c.poll()
     actor(WATCHER)
-    set_doc(send=50, swap=150)
+    set_doc(send=50, swap=150, version=2)
     assert c.poll() == 'RESTRICTED'
     assert not c.can_execute(Address(AGENT), 'SEND', 8000)
     assert c.can_execute(Address(AGENT), 'SEND', 3000)
@@ -144,7 +147,7 @@ def test_widening_requires_owner_plus_fresh_source(ctx):
     set_doc()
     c.poll()
     actor(WATCHER)
-    set_doc(send=200, swap=350, bridge=25)
+    set_doc(send=200, swap=350, bridge=25, version=2)
     assert c.poll() == 'WIDENING_PENDING'
     assert not c.can_execute(Address(AGENT), 'SEND', 15000)
     assert not c.can_execute(Address(AGENT), 'BRIDGE', 100)
@@ -162,9 +165,9 @@ def test_stale_pending_revision_cannot_be_approved(ctx):
     c, svc, actor, set_doc = ctx
     set_doc()
     c.poll()
-    set_doc(send=200)
+    set_doc(send=200, version=2)
     c.poll()
-    set_doc(send=300)
+    set_doc(send=300, version=3)
     with pytest.raises(ValueError, match='source changed'):
         c.approve_widening()
     assert not c.can_execute(Address(AGENT), 'SEND', 15000)
@@ -175,7 +178,7 @@ def test_mixed_revision_tightens_even_when_other_cap_widens(ctx):
     set_doc()
     c.poll()
     actor(WATCHER)
-    set_doc(send=50, swap=500)
+    set_doc(send=50, swap=500, version=2)
     assert c.poll() == 'WIDENING_PENDING'
     assert not c.can_execute(Address(AGENT), 'SEND', 8000)
     assert not c.can_execute(Address(AGENT), 'SWAP', 45000)
@@ -230,7 +233,7 @@ def test_revocation_and_owner_only_monitor_change(ctx):
     with pytest.raises(ValueError, match='owner only'):
         c.change_monitor(Address(STRANGER))
     actor(WATCHER)
-    set_doc(send=0, swap=0)
+    set_doc(send=0, swap=0, version=2)
     assert c.poll() == 'REVOKED'
     assert not c.can_execute(Address(AGENT), 'SEND', 1)
     actor(OWNER)
@@ -251,7 +254,7 @@ def test_outage_invalidates_pending_widening(ctx):
     c, svc, actor, set_doc = ctx
     set_doc()
     c.poll()
-    set_doc(send=200)
+    set_doc(send=200, version=2)
     assert c.poll() == 'WIDENING_PENDING'
     svc.page = None
     assert c.poll() == 'UNRESOLVED'
@@ -288,3 +291,334 @@ def test_audit_preserves_verbatim_quotes_and_actor(ctx):
     assert len(audit['quote_sha256']) == 64
     with pytest.raises(ValueError, match='missing audit'):
         c.audit_at(999)
+
+
+# Security regression tests: DO NOT remove to "fix" a failing contract.
+def test_forged_numeric_cap_is_not_authorized(ctx):
+    c, svc, actor, set_doc = ctx
+    set_doc()
+    svc.response["send_cents"] = 99999999  # quote still says $100
+    assert c.poll() == "UNRESOLVED"
+    assert not c.initialized
+    assert not c.can_execute(Address(AGENT), "SEND", 8000)
+
+
+def test_full_document_is_not_silently_truncated(ctx):
+    c, svc, actor, set_doc = ctx
+    set_doc()
+    c.poll()
+    before = c.audit_count()
+    old_hash = json.loads(c.status())["last_source_hash"]
+    # A >8192-byte page with late revocation MUST NEVER be accepted as valid.
+    svc.page += "\n" + ("Z" * 9000) + "\nSEND is prohibited."
+    assert c.poll() == "UNRESOLVED"
+    assert json.loads(c.status())["health"] == "UNRESOLVED"
+    assert c.audit_count() == before + 1
+    assert json.loads(c.status())["last_source_hash"] == old_hash
+    assert not c.can_execute(Address(AGENT), "SEND", 100)
+
+
+def test_same_version_edit_freezes_instead_of_applying(ctx):
+    c, svc, actor, set_doc = ctx
+    set_doc()
+    c.poll()
+    set_doc(send=50, version=1)
+    assert c.poll() == "UNRESOLVED"
+    assert c.send_cents == 10000  # preserved but no execution allowed
+    assert not c.can_execute(Address(AGENT), "SEND", 100)
+    assert json.loads(c.status())["last_policy_version"] == 1
+
+
+def test_old_version_cannot_widen_after_tightening(ctx):
+    c, svc, actor, set_doc = ctx
+    set_doc()
+    c.poll()
+    set_doc(send=50, version=2)
+    assert c.poll() == "RESTRICTED"
+    set_doc(send=100, version=1)
+    assert c.poll() == "UNRESOLVED"
+    assert c.send_cents == 5000
+    assert not c.can_execute(Address(AGENT), "SEND", 8000)
+
+
+def test_wrong_agent_and_chain_fail_closed(ctx):
+    c, svc, actor, set_doc = ctx
+    doc, answer = fixture_doc(agent=STRANGER)
+    svc.page, svc.response = doc, answer
+    assert c.poll() == "UNRESOLVED"
+    doc, answer = fixture_doc(chain=100)
+    svc.page, svc.response = doc, answer
+    assert c.poll() == "UNRESOLVED"
+
+
+def test_wrong_currency_and_missing_version_fail_closed(ctx):
+    c, svc, actor, set_doc = ctx
+    set_doc()
+    svc.page = svc.page.replace("CURRENCY: USD", "CURRENCY: EUR")
+    assert c.poll() == "UNRESOLVED"
+    set_doc()
+    svc.page = svc.page.replace("POLICY_VERSION: 1", "POLICY_VERSION: unknown")
+    assert c.poll() == "UNRESOLVED"
+
+
+def test_wrong_quote_scope_rejected(ctx):
+    c, svc, actor, set_doc = ctx
+    set_doc()
+    svc.response["send_quote"] = svc.response["swap_quote"]
+    assert c.poll() == "UNRESOLVED"
+    assert not c.initialized
+
+
+def test_multiple_usd_values_are_ambiguous(ctx):
+    c, svc, actor, set_doc = ctx
+    set_doc()
+    additional = "Agents may SEND up to $100.00 per operation, not $10000.00."
+    svc.page += "\n" + additional
+    svc.response["send_quote"] = additional
+    assert c.poll() == "UNRESOLVED"
+
+
+def test_quote_claiming_zero_without_prohibition_rejected(ctx):
+    c, svc, actor, set_doc = ctx
+    set_doc()
+    svc.response["send_cents"] = 0
+    assert c.poll() == "UNRESOLVED"
+
+
+def test_new_version_valid_recovery_after_rollback(ctx):
+    c, svc, actor, set_doc = ctx
+    set_doc()
+    c.poll()
+    set_doc(send=50, version=2)
+    c.poll()
+    set_doc(version=1)
+    c.poll()
+    set_doc(send=40, version=3)
+    assert c.poll() == "RESTRICTED"
+    assert c.can_execute(Address(AGENT), "SEND", 3000)
+    assert not c.can_execute(Address(AGENT), "SEND", 8000)
+    assert json.loads(c.status())["last_policy_version"] == 3
+
+
+def test_strict_positive_quote_parses_USD_cents(ctx):
+    c, svc, actor, set_doc = ctx
+    set_doc()
+    c.poll()
+    assert c.can_execute(Address(AGENT), "SEND", 10000)
+    assert not c.can_execute(Address(AGENT), "SEND", 10001)
+    entry = json.loads(c.audit_at(0))
+    assert entry["policy_version"] == 1
+
+
+def test_duplicate_action_clause_is_ambiguous(ctx):
+    c, svc, actor, set_doc = ctx
+    set_doc()
+    # A later restriction must not be ignored even if the model quotes the old rule.
+    svc.page += "\nSEND is prohibited."
+    assert c.poll() == "UNRESOLVED"
+    assert not c.initialized
+
+
+def test_positive_amount_with_extra_decimal_digit_is_invalid(ctx):
+    c, svc, actor, set_doc = ctx
+    set_doc()
+    bad = "Agents may SEND up to $100.000 per operation."
+    svc.page = svc.page.replace(svc.response["send_quote"], bad)
+    svc.response["send_quote"] = bad
+    assert c.poll() == "UNRESOLVED"
+
+
+def test_replay_version_zero_is_invalid(ctx):
+    c, svc, actor, set_doc = ctx
+    set_doc()
+    svc.page = svc.page.replace("POLICY_VERSION: 1", "POLICY_VERSION: 0")
+    assert c.poll() == "UNRESOLVED"
+
+
+def test_widening_source_version_and_hash_are_both_pinned(ctx):
+    c, svc, actor, set_doc = ctx
+    set_doc()
+    c.poll()
+    set_doc(send=200, version=2)
+    assert c.poll() == "WIDENING_PENDING"
+    assert json.loads(c.status())["pending_policy_version"] == 2
+    set_doc(send=200, version=3)  # same caps but a new edition
+    with pytest.raises(ValueError, match="source changed"):
+        c.approve_widening()
+    assert not c.can_execute(Address(AGENT), "SEND", 15000)
+
+
+def test_more_exact_amount_quote_rejected(ctx):
+    c, svc, actor, set_doc = ctx
+    set_doc()
+    svc.response["send_cents"] = 10001
+    assert c.poll() == "UNRESOLVED"
+
+
+def test_invalid_constructor_url_is_rejected(ctx):
+    c, svc, actor, set_doc = ctx
+    module = sys.modules['drail_test_module']
+    for url in ('https://', 'http://policy.example.org/current',
+                'https://policy.example.org/current?x=1',
+                'https://user@policy.example.org/current'):
+        with pytest.raises(ValueError):
+            module.Drail(url, Address(AGENT), Address(WATCHER))
+
+
+def test_consumer_rejects_invalid_guard_and_invalid_inputs(ctx):
+    c, svc, actor, set_doc = ctx
+    from importlib.util import spec_from_file_location, module_from_spec
+    path = pathlib.Path(__file__).resolve().parents[1] / 'contracts' / 'consumer_fixture.py'
+    spec = spec_from_file_location('drail_consumer_test_module', path)
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+    zero = Address('0x' + '0'*40)
+    with pytest.raises(ValueError, match='guard must be'):
+        module.DrailConsumerFixture(zero)
+    fixture = module.DrailConsumerFixture(Address(WATCHER))
+    for a, amount in [('BOGUS', 1), ('SEND', 0), ('SEND', True), ('SEND', -3)]:
+        with pytest.raises(ValueError):
+            fixture.execute(a, amount)
+    assert fixture.count() == 0
+
+
+def test_consumer_uses_real_guard_result_and_agent_binding(ctx):
+    c, svc, actor, set_doc = ctx
+    import importlib.util
+    path = pathlib.Path(__file__).resolve().parents[1] / 'contracts' / 'consumer_fixture.py'
+    spec = importlib.util.spec_from_file_location('drail_consumer_test_module2', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    genlayer_mod = sys.modules['genlayer']
+    class Proxy:
+        def view(self):
+            return c
+    genlayer_mod.gl.get_contract_at = lambda addr: Proxy()
+    consumer = module.DrailConsumerFixture(Address(WATCHER))
+    set_doc()
+    c.poll()
+    actor(AGENT)
+    assert consumer.execute('SEND', 9000) is True
+    assert consumer.count() == 1
+    with pytest.raises(ValueError, match='permission denied'):
+        consumer.execute('BRIDGE', 1)
+    assert consumer.count() == 1
+    actor(STRANGER)
+    with pytest.raises(ValueError, match='permission denied'):
+        consumer.execute('SEND', 1)
+    assert consumer.count() == 1
+
+
+def test_unlimited_does_not_count_as_numeric_maximum(ctx):
+    c, svc, actor, set_doc = ctx
+    set_doc()
+    clause = "Agents may SEND unlimited $100.00 per operation."
+    svc.page = svc.page.replace(svc.response["send_quote"], clause)
+    svc.response["send_quote"] = clause
+    assert c.poll() == "UNRESOLVED"
+
+
+# Evidence freshness and conditional-grant regression tests.
+def test_permission_expires_without_successful_repoll(ctx, monkeypatch):
+    c, svc, actor, set_doc = ctx
+    module = sys.modules['drail_test_module']
+    current = [2_000_000]
+    monkeypatch.setattr(module, 'now_seconds', lambda: current[0])
+    set_doc()
+    assert c.poll() == 'INITIALIZED'
+    assert c.can_execute(Address(AGENT), 'SEND', 8000)
+    current[0] += 3600
+    assert c.can_execute(Address(AGENT), 'SEND', 8000)
+    current[0] += 1
+    assert not c.can_execute(Address(AGENT), 'SEND', 8000)
+    state = json.loads(c.status())
+    assert state['health'] == 'OK'
+    assert state['evidence_fresh'] is False
+    assert state['last_verified_at'] == 2_000_000
+
+
+def test_same_version_repoll_renews_freshness_without_audit_spam(ctx, monkeypatch):
+    c, svc, actor, set_doc = ctx
+    module = sys.modules['drail_test_module']
+    current = [2_000_000]
+    monkeypatch.setattr(module, 'now_seconds', lambda: current[0])
+    set_doc()
+    c.poll()
+    current[0] += 3601
+    assert not c.can_execute(Address(AGENT), 'SEND', 100)
+    assert c.poll() == 'ACTIVE'
+    assert c.can_execute(Address(AGENT), 'SEND', 100)
+    assert c.audit_count() == 1
+    assert json.loads(c.status())['last_verified_at'] == current[0]
+
+
+def test_failed_poll_never_renews_freshness(ctx, monkeypatch):
+    c, svc, actor, set_doc = ctx
+    module = sys.modules['drail_test_module']
+    current = [2_000_000]
+    monkeypatch.setattr(module, 'now_seconds', lambda: current[0])
+    set_doc()
+    c.poll()
+    current[0] += 3601
+    svc.page = None
+    assert c.poll() == 'UNRESOLVED'
+    assert not c.can_execute(Address(AGENT), 'SEND', 100)
+    assert json.loads(c.status())['last_verified_at'] == 2_000_000
+
+
+def test_conditional_approval_clause_does_not_create_autonomous_cap(ctx):
+    c, svc, actor, set_doc = ctx
+    set_doc()
+    clause = 'Agents may SEND up to $100.00 per operation if a manager signs.'
+    svc.page = svc.page.replace(svc.response['send_quote'], clause)
+    svc.response['send_quote'] = clause
+    assert c.poll() == 'UNRESOLVED'
+    assert not c.can_execute(Address(AGENT), 'SEND', 8000)
+
+
+def test_unbounded_exception_does_not_create_autonomous_cap(ctx):
+    c, svc, actor, set_doc = ctx
+    set_doc()
+    clause = 'Agents may SEND up to $100.00 per operation, unlimited exceptions apply.'
+    svc.page = svc.page.replace(svc.response['send_quote'], clause)
+    svc.response['send_quote'] = clause
+    assert c.poll() == 'UNRESOLVED'
+    assert not c.initialized
+
+
+def test_studio_integer_address_constructor(ctx):
+    c, svc, actor, set_doc = ctx
+    module = sys.modules['drail_test_module']
+    instance = module.Drail('https://policy.example.org/current', int(AGENT, 16), int(WATCHER, 16))
+    assert instance.agent.as_hex.lower() == AGENT
+    assert instance.monitor.as_hex.lower() == WATCHER
+    assert instance.can_execute(int(AGENT, 16), 'SEND', 1) is False
+
+
+def test_studio_integer_address_validation(ctx):
+    c, svc, actor, set_doc = ctx
+    module = sys.modules['drail_test_module']
+    low = 0x12345
+    instance = module.Drail('https://policy.example.org/current', low, int(WATCHER, 16))
+    assert instance.agent.as_hex.lower() == '0x' + format(low, '040x')
+    for bad in (True, -1, 1 << 160, 1 << 200, '0x33', {}, None):
+        with pytest.raises(ValueError, match='invalid'):
+            module.Drail('https://policy.example.org/current', bad, int(WATCHER, 16))
+        with pytest.raises(ValueError, match='invalid'):
+            module.Drail('https://policy.example.org/current', int(AGENT, 16), bad)
+
+
+def test_studio_integer_monitor_rotation_and_consumer(ctx):
+    c, svc, actor, set_doc = ctx
+    c.change_monitor(int(STRANGER, 16))
+    assert c.monitor.as_hex.lower() == STRANGER
+    import importlib.util
+    path = pathlib.Path(__file__).resolve().parents[1] / 'contracts' / 'consumer_fixture.py'
+    spec = importlib.util.spec_from_file_location('drail_consumer_int_abi', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    fixture = module.DrailConsumerFixture(int(WATCHER, 16))
+    assert fixture.guard.as_hex.lower() == WATCHER
+    for bad in (True, -1, 1 << 160, 0):
+        with pytest.raises(ValueError):
+            module.DrailConsumerFixture(bad)

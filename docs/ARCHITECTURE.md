@@ -11,8 +11,8 @@ cannot be interpreted as 0 — that would silently invent a restriction.
 
 - Pinned: `authority_url`, `owner`, `agent`, `monitor`, `source_scope`.
 - Current: `initialized`, `health`, `policy_status`, three approved caps,
-  `last_source_hash`.
-- Pending: three proposed caps and `pending_source_hash`.
+  `last_source_hash`, `last_policy_version` and `chain_id`.
+- Pending: three proposed caps, `pending_source_hash`, `pending_policy_version`.
 - Append-only: `revision`, `audit` entries. Historical entries contain caller,
   action category, effective caps, source digest, actual supporting excerpts.
 
@@ -28,7 +28,8 @@ currently approved cap. This is a view authorization result, NOT a transfer.
 | Previous state | New evidence | Result |
 |---|---|---|
 | UNVERIFIED | valid pinned policy; owner submits | INITIALIZED; validated caps active |
-| ACTIVE / RESTRICTED | all caps decrease/equal | TIGHTENED/REVALIDATED; apply now |
+| ACTIVE / RESTRICTED | next policy version and all caps decrease/equal | TIGHTENED/REVALIDATED; apply now |
+| any initialized | old version or same version with different bytes | UNRESOLVED; retain proven caps, block execution |
 | ACTIVE / RESTRICTED | any cap increases | PENDING_WIDENING; apply decreases now, do not grant increases |
 | PENDING_WIDENING | owner approval + fresh same source hash/caps | WIDENED_BY_OWNER |
 | any | source unreachable/unclear and consensus resolves that result | UNRESOLVED, block execution, preserve approved caps |
@@ -85,3 +86,25 @@ The core contract does not run by itself. A trusted owner/monitor must submit
 `poll()` transactions. There is no on-chain guarantee that the remote policy is
 current unless its updater is reliable. `gl.message.datetime` is not used, as
 legacy runner compatibility is uncertain. Do not assume real-time expiry.
+
+## Canonical envelope and numeric post-validation
+
+The first seven lines of a small (<=8192-byte) UTF-8 policy are mandatory and
+must bind VERSION, AGENT, CHAIN_ID, CURRENCY and STATUS. A version is immutable;
+previously observed versions cannot be replayed, nor may same-version content
+be edited. The entire document is hashed. A duplicate SEND, SWAP or BRIDGE
+mention anywhere in the rule body fails rather than allowing the model to
+silently choose a preferred clause. Only a single unambiguous USD amount per
+permitted action is supported. A deterministic second check rejects a model
+cap that contradicts its quoted amount. The model still interprets the prose
+(rule type/permission) and validators check the same source independently.
+This is a deliberately narrow safe subset, not a general compliance parser.
+
+The version metadata remains publisher-controlled and is not cryptographically
+signed. Freshness requires an external monitor because this runner does not
+supply a verified expiry clock to DRAIL. Cross-contract consumers must wait for
+finality and must not assume a `view` alone supplies global atomicity.
+
+## Verification freshness and conditions
+
+An authorized successful policy observation updates `last_verified_at` using the GenVM deterministic transaction clock. The permission view enforces `0 <= current_time - last_verified_at <= 3600`, and denies access if verification is missing, future-dated or expired. Revalidating an unchanged policy renews freshness without spamming the audit revision history. Failed or reverted consensus does not extend the age window. The view may return denied while the stored `health` remains `OK`, which represents the last agreed evidence outcome rather than freshness. Positive permission quotes that include conditions, approvals, exceptions or unbounded limits are deliberately not translated into a usable autonomous cap.
