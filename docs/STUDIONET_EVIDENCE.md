@@ -300,7 +300,7 @@ Equivalence-principle output, normalized JSON copied from tester's receipt:
 
 The result confirms that source was re-observed with proposed V3 caps, quotes and the same digest that was staged. Combined with the separately provided state readback (`ACTIVE`, no pending proposal, `revision=4`), this supports an accepted and successfully executed owner-gated approval. The visible timeline's `6Finalized` label is not treated as a substitute for the overview's **Status: FINALIZED**. Re-check finality before making that stronger claim.
 
-**Audit confirmed by tester:** `audit_at(3)` returned `WIDENED_BY_OWNER`, revision 4, policy version 3, effective caps `[20000,35000,2500]`, source and quote hashes matching the V3 staged proposal. Remaining: post-approval authorization boundary checks and finality verification when available.
+**Audit confirmed by tester:** `audit_at(3)` returned `WIDENED_BY_OWNER`, revision 4, policy version 3, effective caps `[20000,35000,2500]`, source and quote hashes matching the V3 staged proposal. The four post-approval authorization boundary checks have now been reported by the tester; finality verification still pending.
 
 ### Audit #4 — owner-authorized widening directly observed by tester (2026-10-17)
 
@@ -332,4 +332,19 @@ The source and quote digests match the prior `WIDENING_PENDING` audit (`audit_at
 | 3 | WIDENING_PENDING | 5000 / 15000 / 0 | Confirmed by tester |
 | 4 | WIDENED_BY_OWNER | 20000 / 35000 / 2500 | Confirmed by tester |
 
-**Open:** owner-approval Explorer overview was most recently **ACCEPTED** (execution **SUCCESS**) rather than explicitly FINALIZED; post-approval `can_execute` boundary checks, stale source / rollback / fetch failure adversarial checks and consumer fixture call are not yet proven on this deployed instance. Do not claim mainnet production readiness.
+**Open:** owner-approval Explorer overview was most recently **ACCEPTED** (execution **SUCCESS**) rather than explicitly FINALIZED; stale source / rollback / fetch failure adversarial checks and consumer fixture call are not yet proven on this deployed instance. The four post-approval authorization tests were reported and matched their expected responses (see below). Do not claim mainnet production readiness.
+
+### V3 post-owner-approval permission checks (2026-10-17)
+
+The tester reported four `can_execute` responses after the approved V3 `status()` readback. Tests were requested using the previously configured `agent=0x3333333333333333333333333333333333333333`; the latest Studio messages showed response values and amounts, with action given explicitly for BRIDGE 100. The agent address and the other action labels were not reproduced in the messages, so treat the test input association as user-followed-instruction evidence rather than a complete call trace.
+
+| Prescribed input | Tester response | Expected | Read-test result |
+| --- | --- | --- | --- |
+| `can_execute(agent, "SEND", 8000)` | `true` | `true` | Matches |
+| `can_execute(agent, "SEND", 25000)` | `false` | `false` | Matches |
+| `can_execute(agent, "BRIDGE", 100)` | `true` | `true` | Matches |
+| `can_execute(agent, "BRIDGE", 3000)` | `false` | `false` | Matches |
+
+**Security significance:** SEND 8000 and BRIDGE 100 were denied while V3 widening was staged; after authorized owner approval the same requests were permitted, while requests exceeding approved SEND 20000 and BRIDGE 2500 remained denied. This is a tester-observed authorization outcome at the Studio Accepted read state, not a financial transfer or independently signed execution trace.
+
+**Next live coverage priorities:** Recheck owner-approval FINALIZED status; verify time-expiry/fail-closed without mutating the source; exercise same-version conflict/rollback, source-unavailable freeze, and stale pending proposal on a disposable *separate contract or carefully planned follow-on policy versions* so the completed V1→V3 demo remains reproducible. Deploy and test `consumer_fixture.py` for cross-contract enforcement. Keep policy source V3 intact until the evidence plan is agreed.
