@@ -79,7 +79,7 @@ Use `contracts/consumer_fixture.py` as a second contract deployed on Studionet w
 | --- | --- | --- | --- | --- | --- |
 | Lab deployment + baseline | Lab V1 published in branch | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`poll()` FINALIZED](https://explorer-studio.genlayer.com/tx/0xb3fd92a84b91c250c9dc2e75df55646f2db3dff6c0380032add7275c6672f943) (tester-transcribed Explorer details) | `ACTIVE`, V1 caps `[10000,25000,0]`, `audit_at(0)=INITIALIZED`, revision 1 | BASELINE PASS |
 | Same-version conflict / recovery | Mutation `a247ed8`, restored `c347022` | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`UNRESOLVED` FINALIZED](https://explorer-studio.genlayer.com/tx/0xa26822c69c44da50da6ae7fa564a83ec6498ac672510293f8e1aae72ce0cd59c); [`ACTIVE` recovery FINALIZED](https://explorer-studio.genlayer.com/tx/0xe3c1b26cdbaa646604634af2efc69d3b361b64d1eb0319f4cc89f81f03999a8c) | version-conflict audit, SEND 100 denied while frozen; post-recovery `health=OK`, revision 3, baseline hash/caps restored | TAMPERING & RECOVERY FULL PASS |
-| V2 tightening + rollback | V2 published `1fc7f8e`, V1 rollback published `f0c0b0e` on Lab URL only | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [V2 `poll()` FINALIZED](https://explorer-studio.genlayer.com/tx/0xd811f00da484fbfb7537f14a19a81389ff57a6f5bff6964f908f8a267e2b6373); rollback `poll()` pending | V2 `audit_at(3)=TIGHTENED`; limits `[5000,15000,0]`, SEND 8000 false, SEND 4000 true (action inferred); rollback readbacks pending | V2 FULL PASS; V1 ROLLBACK SOURCE PUBLISHED / LIVE TEST PENDING |
+| V2 tightening + rollback | V2 `1fc7f8e`, V1 rollback `f0c0b0e` (Lab URL only) | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [V2 `poll()` FINALIZED](https://explorer-studio.genlayer.com/tx/0xd811f00da484fbfb7537f14a19a81389ff57a6f5bff6964f908f8a267e2b6373), [rollback `poll()` FINALIZED](https://explorer-studio.genlayer.com/tx/0x148feed9dbf558dcd73136f14c32e1ea4d06147961a0324892f91d771f29971d) | `UNRESOLVED`, V2 caps/version/hash retained, revision 5; `audit_at(4)` and view check pending | ROLLBACK STATE/FINALITY PASS; audit & fail-closed view pending |
 | Invalid metadata / conflict / oversize | TBD | TBD | TBD | TBD | PENDING |
 | V3 stale widening approval | TBD | TBD | TBD | TBD | PENDING |
 | Pause + recover | TBD | TBD | TBD | TBD | PENDING |
@@ -373,4 +373,43 @@ Tester supplied Studio **Response (Accepted)** for two `can_execute()` checks us
 - **Important:** Changing the remote source cannot itself instantly change on-chain health; call and finalize `poll()` before asserting fail-closed. This Lab is disposable and must never authorize real transfers. Until the poll is FINALIZED, the previously accepted chain state may still reflect V2 and may have a fresh permission view.
 - **Isolation:** the original demo `fix/security-hardening-v1/examples/policy_v1.txt` was checked still serving V3, SEND $200 and SWAP $350. Main demo contract `0xC67f64634b603cF3fe62fD3447FEedb3E4707E56` untouched.
 
-**Next step:** run `poll()` on Lab contract `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` with authorized owner. Collect **FINALIZED** Explorer transcript, `status()`, `audit_at(4)` and SEND 100 fail-closed readback. No further policy mutations until the rollback case is recorded.
+**Next step after FINALIZED rollback poll:** collect `audit_at(4)` and SEND 100 fail-closed readback. The user has provided the finalized Explorer receipt and `status()` below. No further policy mutations until the rollback case is recorded.
+
+### Test E — FINALIZED V2→V1 rollback rejection (tester-reported, 2026-10-17)
+
+**Explorer transaction:** https://explorer-studio.genlayer.com/tx/0x148feed9dbf558dcd73136f14c32e1ea4d06147961a0324892f91d771f29971d
+
+| Field | Tester-transcribed Explorer receipt |
+| --- | --- |
+| **Status** | **FINALIZED** |
+| Method / execution | `poll()` / **GenVM SUCCESS** |
+| Return Value | **`"UNRESOLVED"`** |
+| Consensus | **Accepted**, five initial validators, rotation count zero |
+| From | `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb` (owner/monitor) |
+| To | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` (isolated Lab) |
+| Nonce | `357` |
+| Created At (Explorer display) | Oct 17, 2026, 12:08:04 PM |
+| Equivalence output | `result=VALID`, `policy_version=1`, SEND `10000`, SWAP `25000`, BRIDGE `0`, source digest `43614571712be09b85df4452e8b797c6eb2943b422a408a1b4abda54843860a3` |
+
+**Post-poll `status()` (tester):**
+
+| Field | Observed |
+| --- | --- |
+| `initialized` | `true` |
+| `health` | **`UNRESOLVED`** |
+| `evidence_fresh` | `false` |
+| `policy_status` | `RESTRICTED` (the last effective policy label, not authorization while health is frozen) |
+| `last_policy_version` | **`2`**, preserved despite source reporting version 1 |
+| `last_source_hash` | **`87853722863dadb7fefd17e5e136387046caa78e6f16f5e273cfd785168ec4d2`**, preserved V2 digest |
+| `send_cents` / `swap_cents` / `bridge_cents` | **`5000 / 15000 / 0`**, preserved V2 caps |
+| `revision` | **`5`** |
+| `pending` | `false` |
+| `last_verified_at` | `1792213234` unchanged from accepted V2 |
+| `owner`/`monitor`/`agent` | `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb` |
+| `chain_id` | `61999` |
+
+**Security significance:** The GenLayer validators could parse the authentic old V1 policy as `VALID`; the contract's deterministic version rule still rejected it as a rollback, returning `UNRESOLVED` and preserving the last approved V2 effective limits, source hash and policy version. This is a **PASS for rollback-detection/state-freeze**, with FINALIZED TX and updated on-chain state corroboration.
+
+**Still outstanding to close full Test E:** read `audit_at(4)`, expected `kind=FROZEN_ROLLBACK`, `revision=5`, `policy_version=2`, caps `[5000,15000,0]` and *observed rolled-back V1* source digest `43614571712be09b85df4452e8b797c6eb2943b422a408a1b4abda54843860a3`. Then verify `can_execute(who=0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb,action="SEND",amount_cents=100) == false`. Do not claim these two readbacks or recovery until they are actually supplied.
+
+**Safety:** Lab V1 rollback source intentionally remains published pending audit and denial checks; do not mutate. Primary demo V3 source and its contract remain out of scope. This record is based on the tester's Explorer transcript/readback, not direct Explorer UI retrieval.
