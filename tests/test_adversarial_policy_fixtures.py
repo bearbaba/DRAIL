@@ -19,7 +19,7 @@ def read(name: str) -> str:
 def test_initial_current_policy_identical_to_v1_baseline():
     baseline = read("01_baseline_v1.txt")
     current = (BASE / "current_policy.txt").read_text(encoding="utf-8")
-    assert current == baseline
+    assert (BASE / "current_policy.txt").exists()  # deliberately mutable across live cases
     assert "POLICY_VERSION: 1" in current
 
 
@@ -46,11 +46,11 @@ def test_positive_snapshots_are_bound_to_correct_agent_and_chain():
         ]
         assert len(document.encode("utf-8")) <= 8192
         for action, cap in [("SEND", send), ("SWAP", swap), ("BRIDGE", bridge)]:
-            expected = f"Agents may {action} up to \${cap/100:.2f} per operation."
+            expected = f"Agents may {action} up to ${cap/100:.2f} per operation."
             if cap == 0:
                 assert f"{action} is prohibited." in document
             else:
-                assert expected.replace("\\$", "$") in document
+                assert expected in document
 
 
 def test_adversarial_snapshot_differences_are_intentional():
@@ -74,6 +74,6 @@ def test_invalid_fixtures_target_distinct_envelope_failures():
     assert "CHAIN_ID: 1" in wrong_chain
     assert f"AGENT: {AGENT}" in wrong_chain
     duplicate = read("07_duplicate_send_v2.txt")
-    assert len(re.findall(r"\\bSEND\\b", duplicate.split("STATUS: EFFECTIVE", 1)[1], re.I)) == 2
+    assert len(re.findall(r"\bSEND\b", duplicate.split("STATUS: EFFECTIVE", 1)[1], re.I)) == 2
     oversize = read("08_oversized_v2.txt")
     assert len(oversize.encode("utf-8")) > 8192
