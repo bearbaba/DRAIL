@@ -46,7 +46,7 @@ For each test: (1) record policy source commit and URL; (2) allow GitHub raw pro
 | E — rollback | `04_rollback_v1.txt` | Owner `poll()` | `UNRESOLVED`, `FROZEN_ROLLBACK`; V2 caps preserved but denied |
 | F — recovery | Restore `03_tightened_v2.txt` | Owner `poll()` | Health `OK`, effective V2 caps restored |
 | G — wrong agent | [FINALIZED `poll()`](https://explorer-studio.genlayer.com/tx/0x22ee0b9ec759f7f78ebc135d227660bc4cc6732bf456ee8c4710ddce18c388c6) | `UNCLEAR`, `UNRESOLVED`, revision 7, `audit_at(6)=FROZEN_UNCLEAR`, accepted V2 caps/hash preserved; SEND $1 denied | **FULL PASS**; restoration pending |
-| H — wrong chain | Restore V2, then publish `06_wrong_chain_v2.txt` | Poll after healthy recovery | `FROZEN_UNCLEAR`, execution frozen |
+| H/I — wrong chain | Lab-only wrong-chain source published `c24d2cf` | Pending Lab `poll()` | Expected `FROZEN_UNCLEAR`, revision 9, caps/hash of V2 retained | SOURCE READY; LIVE TEST PENDING |
 | I — duplicate rule | Restore V2, then publish `07_duplicate_send_v2.txt` | Poll after healthy recovery | `FROZEN_UNCLEAR`, conflicting SEND clauses rejected |
 | J — oversized source | Restore V2, then publish `08_oversized_v2.txt` | Poll after healthy recovery | `FROZEN_UNCLEAR`; full file exceeds 8192 UTF-8 bytes |
 | K — staged widening | Restore V2 then publish `09_widening_v3.txt` | Owner `poll()` | `PENDING_WIDENING`, pending caps `[20000,35000,2500]`; **effective remains `[5000,15000,0]`** |
@@ -617,3 +617,15 @@ Tester provided `audit_at(7)`: `kind=RECOVERED`, `revision=8`, `policy_version=2
 Tester additionally reported **`SEND 100 TRUE`** as the post-recovery `can_execute()` response. The wallet field was not reprinted; interpretation assumes the previously prescribed Lab agent. The preceding `poll()` TX `0x822e81fbfc60a8a0c2a30287786271248221ccf42c3a82833e2818d6ac8938ac` was FINALIZED and returned `RESTRICTED`, `health=OK`, revision 8, with fresh V2 evidence. This completes the fail-closed recovery cycle for the wrong-agent attack.
 
 **Test H FULL PASS:** correct agent V2 source accepted again, freeze cleared, source/quote digests preserved, and SEND $1 permitted under a fresh $50 SEND cap. No real transfers performed. Next: isolated wrong-chain fixture, not yet published at the moment of this ledger entry.
+
+### Test I — WRONG CHAIN ID policy fixture published; live test pending
+
+- **Lab-only source commit:** `c24d2cf3d91712dae1250e4810f040f13c921611`.
+- **Unchanged authority URL:** https://raw.githubusercontent.com/bearbaba/DRAIL/studionet-adversarial-lab/examples/adversarial/current_policy.txt
+- GitHub raw was re-fetched and verified **byte-identical** to archived fixture `examples/adversarial/snapshots/06_wrong_chain_v2.txt` (blob SHA `f5ce34c64b70a5e7a1b4aa2c43093d0f3458aa59`).
+- Source still declares **policy version 2**, correct Lab agent, SEND $50, SWAP $150, BRIDGE prohibited; only metadata **`CHAIN_ID: 1`** is wrong for the deployed Studionet contract's **`61999`**. This should be rejected by deterministic `policy_envelope` scope validation before any semantic AI extraction.
+- Approved Lab state immediately preceding this publication: `health=OK`, `policy_status=RESTRICTED`, `revision=8`, version 2, source SHA-256 `87853722863dadb7fefd17e5e136387046caa78e6f16f5e273cfd785168ec4d2`, caps `[5000,15000,0]`; `audit_at(7)=RECOVERED`, `can_execute(SEND,100)=true` at prior readback.
+- **Expected after FINALIZED Lab owner `poll()`:** response `UNRESOLVED`, consensus observation `result=UNCLEAR`, `health=UNRESOLVED`, `evidence_fresh=false`, `revision=9`, `last_policy_version=2` and approved source hash unchanged; effective caps preserved `[5000,15000,0]`, `pending=false`.
+- **Expected audit:** `audit_at(8).kind=FROZEN_UNCLEAR`, with refusal source SHA and empty quotes. **Expected permission:** `can_execute(who=0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb,action="SEND",amount_cents=100)=false` after the freeze.
+- **This case is not PASS yet.** Only source publication is verified; a FINALIZED write, post-write status, audit, and authorization readback are needed. Until they are captured, do not restore V2 or publish another adversarial fixture.
+- Isolation: original demonstration `fix/security-hardening-v1/examples/policy_v1.txt` was checked independently still serving V3 (SEND $200, SWAP $350); main demo contract `0xC67f64634b603cF3fe62fD3447FEedb3E4707E56` remains untouched.
