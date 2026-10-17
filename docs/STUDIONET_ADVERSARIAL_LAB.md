@@ -77,7 +77,7 @@ Use `contracts/consumer_fixture.py` as a second contract deployed on Studionet w
 
 | Test | Source commit | New contract | TX / Explorer | State + audit | Verdict |
 | --- | --- | --- | --- | --- | --- |
-| Lab deployment + baseline | Lab V1 published in branch | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`poll()` TX submitted](https://explorer-studio.genlayer.com/tx/0xb3fd92a84b91c250c9dc2e75df55646f2db3dff6c0380032add7275c6672f943); explicit finality not supplied | `ACTIVE`, V1, caps `[10000,25000,0]`, revision 1, source hash submitted | BASELINE STATE PASS; finality and audit pending |
+| Lab deployment + baseline | Lab V1 published in branch | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`poll()` FINALIZED](https://explorer-studio.genlayer.com/tx/0xb3fd92a84b91c250c9dc2e75df55646f2db3dff6c0380032add7275c6672f943) (tester-transcribed Explorer details) | `ACTIVE`, V1 caps `[10000,25000,0]`, `audit_at(0)=INITIALIZED`, revision 1 | BASELINE PASS |
 | Same-version conflict / recovery | TBD | TBD | TBD | TBD | PENDING |
 | V2 rollback + recovery | TBD | TBD | TBD | TBD | PENDING |
 | Invalid metadata / conflict / oversize | TBD | TBD | TBD | TBD | PENDING |
@@ -104,7 +104,7 @@ Use `contracts/consumer_fixture.py` as a second contract deployed on Studionet w
 ### Baseline V1 poll — state readback and TX submitted (2026-10-17)
 
 - Transaction: https://explorer-studio.genlayer.com/tx/0xb3fd92a84b91c250c9dc2e75df55646f2db3dff6c0380032add7275c6672f943
-- This Explorer page could not be fetched automatically; **transaction FINALIZED status has NOT yet been confirmed by a copied Explorer receipt**. A TX URL does not prove finality.
+- Tester copied Explorer details explicitly showing **Status: FINALIZED**, **GenVM SUCCESS**, **Consensus Accepted**, five initial validators, `poll()` return `INITIALIZED`. The explorer UI was not independently retrieved via automated tooling.
 - Contract: `0x4c80788eA0A3c80906bd365b95f4813ea64D215a`
 - Policy URL: `https://raw.githubusercontent.com/bearbaba/DRAIL/studionet-adversarial-lab/examples/adversarial/current_policy.txt`
 - Agent, monitor, owner: `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb`; chain `61999`.
@@ -122,4 +122,27 @@ Use `contracts/consumer_fixture.py` as a second contract deployed on Studionet w
 | `last_verified_at` | `1792211544` |
 | `last_source_hash` | `43614571712be09b85df4452e8b797c6eb2943b422a408a1b4abda54843860a3` |
 
-**Assessment:** Baseline policy was successfully activated at Studio readback level. The original lab V1 source remains unchanged (verified against immutable `01_baseline_v1.txt` snapshot). Next required evidence: Explorer status **FINALIZED** and `audit_at(0)` with `kind=INITIALIZED`, `revision=1` and the same digest. Only after capturing both should `current_policy.txt` be replaced with same-version-mutated V1, to avoid conflicting observations during baseline finalization.
+**Assessment:** V1 baseline passed at the Studio contract-state, consensus-receipt and audit levels, based on the tester's copied data. The original lab V1 source has been verified byte-for-byte against immutable `01_baseline_v1.txt`. Both prerequisites to publish same-version mutation are satisfied. This does NOT imply that subsequent adversarial case is already tested.
+
+### Baseline V1 — finalized Explorer receipt and audit_at(0) (user evidence)
+
+- TX: https://explorer-studio.genlayer.com/tx/0xb3fd92a84b91c250c9dc2e75df55646f2db3dff6c0380032add7275c6672f943
+- **Explorer status: FINALIZED**, execution **SUCCESS**, consensus **Accepted**, five initial validators (user-transcribed receipt).
+- Caller: `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb`; target: `0x4c80788eA0A3c80906bd365b95f4813ea64D215a`.
+- Method: `poll`; return: `"INITIALIZED"`; nonce `353`; creation time shown: October 17, 2026, 11:32:24 AM.
+- Equivalence output: `VALID`, policy 1, caps `10000/25000/0`, source digest `43614571712be09b85df4452e8b797c6eb2943b422a408a1b4abda54843860a3`.
+- `audit_at(0)`: `kind=INITIALIZED`, `revision=1`, `policy_version=1`, `actor=0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb`, caps `10000/25000/0`.
+- `source_sha256`: `43614571712be09b85df4452e8b797c6eb2943b422a408a1b4abda54843860a3` (matches status and consensus).
+- `quote_sha256`: `87b1fa57d2a2c63bb0bc3a376af9d96b604fed653c40782cfca3089a92e2ec1c`.
+- Quotes: "Agents may SEND up to $100.00 per operation.", "Agents may SWAP up to $250.00 per operation.", "BRIDGE is prohibited."
+
+**Baseline verdict: PASS.** First adversarial live case may now begin. Keep the original proof/demo contract and its branch unchanged. The lab's frozen V1 snapshot remains at `examples/adversarial/snapshots/01_baseline_v1.txt`.
+
+### Test B — same-version content mutation, awaiting live poll
+
+- Deliberate mutation fixture: `examples/adversarial/snapshots/02_same_version_mutation_v1.txt`.
+- The existing lab policy V1 has been read as SEND $100 / SWAP $250 / BRIDGE prohibited.
+- Mutated version **still claims `POLICY_VERSION: 1`** but says SEND $90 / SWAP $250 / BRIDGE prohibited.
+- On the next owner `poll()`: expected `"UNRESOLVED"`, `health=UNRESOLVED`, `policy_status` remains the last known effective policy status (typically `ACTIVE`), `last_policy_version=1`, stored caps remain `10000/25000/0` but `can_execute` returns **false** for any amount.
+- Expected audit at `audit_at(1)`: `kind=FROZEN_VERSION_CONFLICT`, `revision=2` and a new document digest.
+- **Do not assert test B PASS** until a new transaction ID, finalized result, `status()` and audit readback are collected.
