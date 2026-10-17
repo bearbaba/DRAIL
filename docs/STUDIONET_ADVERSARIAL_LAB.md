@@ -78,7 +78,7 @@ Use `contracts/consumer_fixture.py` as a second contract deployed on Studionet w
 | Test | Source commit | New contract | TX / Explorer | State + audit | Verdict |
 | --- | --- | --- | --- | --- | --- |
 | Lab deployment + baseline | Lab V1 published in branch | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`poll()` FINALIZED](https://explorer-studio.genlayer.com/tx/0xb3fd92a84b91c250c9dc2e75df55646f2db3dff6c0380032add7275c6672f943) (tester-transcribed Explorer details) | `ACTIVE`, V1 caps `[10000,25000,0]`, `audit_at(0)=INITIALIZED`, revision 1 | BASELINE PASS |
-| Same-version conflict / recovery | Mutation `a247ed8`, restoration `c347022` | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`poll()` FINALIZED](https://explorer-studio.genlayer.com/tx/0xa26822c69c44da50da6ae7fa564a83ec6498ac672510293f8e1aae72ce0cd59c), `UNRESOLVED` | `health=UNRESOLVED`, original caps retained, `audit_at(1)=FROZEN_VERSION_CONFLICT`, SEND 100 denied | TAMPER & FAIL-CLOSED PASS; recovery pending |
+| Same-version conflict / recovery | Mutation `a247ed8`, restored `c347022` | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`UNRESOLVED` FINALIZED](https://explorer-studio.genlayer.com/tx/0xa26822c69c44da50da6ae7fa564a83ec6498ac672510293f8e1aae72ce0cd59c); [`ACTIVE` recovery FINALIZED](https://explorer-studio.genlayer.com/tx/0xe3c1b26cdbaa646604634af2efc69d3b361b64d1eb0319f4cc89f81f03999a8c) | version-conflict audit, SEND 100 denied while frozen; post-recovery `health=OK`, revision 3, baseline hash/caps restored | TAMPERING PASS; RECOVERY STATE PASS; recovery audit & allowed check pending |
 | V2 rollback + recovery | TBD | TBD | TBD | TBD | PENDING |
 | Invalid metadata / conflict / oversize | TBD | TBD | TBD | TBD | PENDING |
 | V3 stale widening approval | TBD | TBD | TBD | TBD | PENDING |
@@ -242,4 +242,19 @@ The tester called the prescribed view `can_execute(who=0x4C7cb73aC8F8999af21cfc9
 - After recovery, `can_execute(agent, "SEND", 100)` should return `true` **while evidence is fresh**. Do not mark case C PASS without live readbacks and transaction finality.
 - The original demo policy on `fix/security-hardening-v1` was independently checked and still serves version 3. Its deployed reference contract must remain untouched.
 
-**Do not publish adversarial policy V2 until the Lab V1 recovery transaction and audit are recorded.**
+**Do not publish adversarial policy V2 until the Lab V1 recovery audit and post-recovery authorization readback are recorded.**
+
+### Test C — V1 source restoration and successful recovery poll (2026-10-17)
+
+User copied the complete transaction Explorer overview and returned a new `status()` readback. The prior `FROZEN_VERSION_CONFLICT` freeze was lifted **without deploying a new instance or changing version**, once the exact original V1 document was restored at the same pinned Lab URL.
+
+- **Transaction:** https://explorer-studio.genlayer.com/tx/0xe3c1b26cdbaa646604634af2efc69d3b361b64d1eb0319f4cc89f81f03999a8c
+- **Explorer status (user-transcribed): FINALIZED**; method `poll`; from `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb`; to `0x4c80788eA0A3c80906bd365b95f4813ea64D215a`.
+- Explorer creation timestamp: Oct 17, 2026, 11:52:18 AM; nonce `355`; execution mode Normal; five initial validators; rotation count `0`; consensus `Accepted`; GenVM `SUCCESS`; return `"ACTIVE"`.
+- Equivalence output: `result=VALID`, `policy_version=1`, SEND `10000`, SWAP `25000`, BRIDGE `0`; source digest `43614571712be09b85df4452e8b797c6eb2943b422a408a1b4abda54843860a3` **identical to the original V1 baseline**.
+- New `status()`: `initialized=true`, `health=OK`, `evidence_fresh=true`, `policy_status=ACTIVE`, `last_policy_version=1`, `revision=3`, effective caps `[10000,25000,0]`, `pending=false`.
+- New `last_verified_at=1792212738`; `last_source_hash=43614571712be09b85df4452e8b797c6eb2943b422a408a1b4abda54843860a3`.
+- Restored source was checked directly on GitHub: `examples/adversarial/current_policy.txt` has the exact same blob SHA (`26558d9e2b36b5e1c45025e7b62f35bc1ff6b1a9`) as the archived initial V1.
+- The Lab contract **remains** `0x4c80788eA0A3c80906bd365b95f4813ea64D215a`; demo contract `0xC67f64634b603cF3fe62fD3447FEedb3E4707E56` and its policy not modified.
+
+**Outcome: recovery state-transition PASS**, confirmed by a user-transcribed FINALIZED transaction and corroborating status readback. Still outstanding for comprehensive recovery verification: `audit_at(2)` should show `kind=RECOVERED` and the original source hash (code logic inspected) and `can_execute(agent,"SEND",100)` should yield `true` while evidence is fresh. Do not claim those readbacks were performed until the tester supplies them. The next fixture `03_tightened_v2.txt` must not be published before these are recorded.
