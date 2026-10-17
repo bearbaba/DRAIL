@@ -79,7 +79,7 @@ Use `contracts/consumer_fixture.py` as a second contract deployed on Studionet w
 | --- | --- | --- | --- | --- | --- |
 | Lab deployment + baseline | Lab V1 published in branch | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`poll()` FINALIZED](https://explorer-studio.genlayer.com/tx/0xb3fd92a84b91c250c9dc2e75df55646f2db3dff6c0380032add7275c6672f943) (tester-transcribed Explorer details) | `ACTIVE`, V1 caps `[10000,25000,0]`, `audit_at(0)=INITIALIZED`, revision 1 | BASELINE PASS |
 | Same-version conflict / recovery | Mutation `a247ed8`, restored `c347022` | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`UNRESOLVED` FINALIZED](https://explorer-studio.genlayer.com/tx/0xa26822c69c44da50da6ae7fa564a83ec6498ac672510293f8e1aae72ce0cd59c); [`ACTIVE` recovery FINALIZED](https://explorer-studio.genlayer.com/tx/0xe3c1b26cdbaa646604634af2efc69d3b361b64d1eb0319f4cc89f81f03999a8c) | version-conflict audit, SEND 100 denied while frozen; post-recovery `health=OK`, revision 3, baseline hash/caps restored | TAMPERING & RECOVERY FULL PASS |
-| V2 tightening + rollback | V2 published `1fc7f8e`; rollback source NOT published | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`poll()` FINALIZED](https://explorer-studio.genlayer.com/tx/0xd811f00da484fbfb7537f14a19a81389ff57a6f5bff6964f908f8a267e2b6373), return `RESTRICTED` | `health=OK`, `RESTRICTED`, version 2, caps `[5000,15000,0]`, revision 4; audit/permissions pending | V2 STATE + FINALITY PASS; audit/permissions pending |
+| V2 tightening + rollback | V2 published `1fc7f8e`; rollback source **not yet** published | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`poll()` FINALIZED](https://explorer-studio.genlayer.com/tx/0xd811f00da484fbfb7537f14a19a81389ff57a6f5bff6964f908f8a267e2b6373), return `RESTRICTED` | `audit_at(3)=TIGHTENED`, V2, revision 4, caps `[5000,15000,0]`; SEND 8000 false and 4000 true (latter action not reprinted) | V2 TIGHTENING FULL PASS; rollback pending |
 | Invalid metadata / conflict / oversize | TBD | TBD | TBD | TBD | PENDING |
 | V3 stale widening approval | TBD | TBD | TBD | TBD | PENDING |
 | Pause + recover | TBD | TBD | TBD | TBD | PENDING |
@@ -341,4 +341,21 @@ The current GitHub raw source is verified to be version 2, SEND $50, SWAP $150 a
 - Source hash: `87853722863dadb7fefd17e5e136387046caa78e6f16f5e273cfd785168ec4d2`, equal to the user's V2 `status().last_source_hash`.
 - Prior Studio status: `health=OK`, `policy_status=RESTRICTED`, `last_policy_version=2`, `revision=4`, caps `[5000,15000,0]`, `pending=false`, `evidence_fresh=true` at readback.
 
-**Verdict:** Tightening state and transaction finality confirmed from tester-supplied records. Remaining gates before publishing rollback V1: `audit_at(3)` showing `kind=TIGHTENED` and version 2, plus Studio `can_execute` readbacks for SEND 8000 `false` and SEND 4000 `true` (same agent, while evidence fresh). The V2 Lab-only source remains unchanged; original V3 reference contract and source remain outside this test. An Explorer receipt is user-transcribed and not an independent third-party Explorer attestation.
+**Verdict:** Tightening state and transaction finality confirmed from tester-supplied records. Subsequently, the tester supplied `audit_at(3)` proving `kind=TIGHTENED` and version 2, plus Studio Accepted responses of `false` for SEND 8000 and `true` for 4000 under the prescribed SEND test (action omitted for the second response). **V2 pre-rollback evidence gates are now satisfied.** The V2 Lab-only source remains unchanged; original V3 reference contract and source remain outside this test. An Explorer receipt is user-transcribed and not an independent third-party Explorer attestation.
+
+### Test D — on-chain audit and permission boundaries confirmed (tester readbacks)
+
+`audit_at(3)` recorded:
+- `kind=TIGHTENED`; `policy_version=2`; `revision=4`; actor `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb`.
+- Effective caps: `send_cents=5000`, `swap_cents=15000`, `bridge_cents=0`.
+- Source digest: `87853722863dadb7fefd17e5e136387046caa78e6f16f5e273cfd785168ec4d2`; matches the FINALIZED consensus output and V2 status.
+- Quote digest: `b972dc7aa95303ee14fa397c589f75c5fb68b9d9cad19f2d87a735174d4f1134`.
+- Verbatim quotes: "Agents may SEND up to $50.00 per operation.", "Agents may SWAP up to $150.00 per operation.", "BRIDGE is prohibited."
+
+Tester supplied Studio **Response (Accepted)** for two `can_execute()` checks using the prescribed configured agent:
+- `action=SEND`, `amount_cents=8000` → **`false`**, expected (exceeds $50).
+- `amount_cents=4000` → **`true`**, expected for `action=SEND` ($40 is within $50). **Disclosure:** the second copied readback did not repeat the `action` or `who` field, which are inferred from immediately preceding test instructions.
+
+**Test D FULL PASS** based on the tester's FINALIZED poll, V2 status, indexed audit, and boundary readbacks. The next experiment can now deliberately publish the exact archived V1 bytes at the Lab URL and call a fresh `poll()` to test whether a rollback to an older source version is detected and freezes authorizations. This write affects **only** `studionet-adversarial-lab/examples/adversarial/current_policy.txt`; the primary demo's V3 policy and contract MUST remain untouched.
+
+**Predictions for rollback Test E:** `poll()` returns `UNRESOLVED`; `health=UNRESOLVED`, `last_policy_version=2`, `revision=5`; `last_source_hash` stays `87853722863dadb7fefd17e5e136387046caa78e6f16f5e273cfd785168ec4d2`; stored caps remain `[5000,15000,0]` (not reverted to V1). `audit_at(4).kind=FROZEN_ROLLBACK` should record the V1 observed source hash. After the freeze, `can_execute(agent,"SEND",100)` must return `false` even though the stored $50 allowance exceeds $1. **Do not mark Test E PASS until the user provides real receipt/state/audit/permission evidence.**
