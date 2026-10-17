@@ -78,7 +78,7 @@ Use `contracts/consumer_fixture.py` as a second contract deployed on Studionet w
 | Test | Source commit | New contract | TX / Explorer | State + audit | Verdict |
 | --- | --- | --- | --- | --- | --- |
 | Lab deployment + baseline | Lab V1 published in branch | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`poll()` FINALIZED](https://explorer-studio.genlayer.com/tx/0xb3fd92a84b91c250c9dc2e75df55646f2db3dff6c0380032add7275c6672f943) (tester-transcribed Explorer details) | `ACTIVE`, V1 caps `[10000,25000,0]`, `audit_at(0)=INITIALIZED`, revision 1 | BASELINE PASS |
-| Same-version conflict / recovery | Mutation `a247ed8`, restored `c347022` | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`UNRESOLVED` FINALIZED](https://explorer-studio.genlayer.com/tx/0xa26822c69c44da50da6ae7fa564a83ec6498ac672510293f8e1aae72ce0cd59c); [`ACTIVE` recovery FINALIZED](https://explorer-studio.genlayer.com/tx/0xe3c1b26cdbaa646604634af2efc69d3b361b64d1eb0319f4cc89f81f03999a8c) | version-conflict audit, SEND 100 denied while frozen; post-recovery `health=OK`, revision 3, baseline hash/caps restored | TAMPERING PASS; RECOVERY STATE PASS; recovery audit PASS; permitted-call check pending |
+| Same-version conflict / recovery | Mutation `a247ed8`, restored `c347022` | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`UNRESOLVED` FINALIZED](https://explorer-studio.genlayer.com/tx/0xa26822c69c44da50da6ae7fa564a83ec6498ac672510293f8e1aae72ce0cd59c); [`ACTIVE` recovery FINALIZED](https://explorer-studio.genlayer.com/tx/0xe3c1b26cdbaa646604634af2efc69d3b361b64d1eb0319f4cc89f81f03999a8c) | version-conflict audit, SEND 100 denied while frozen; post-recovery `health=OK`, revision 3, baseline hash/caps restored | TAMPERING & RECOVERY FULL PASS |
 | V2 rollback + recovery | TBD | TBD | TBD | TBD | PENDING |
 | Invalid metadata / conflict / oversize | TBD | TBD | TBD | TBD | PENDING |
 | V3 stale widening approval | TBD | TBD | TBD | TBD | PENDING |
@@ -242,7 +242,7 @@ The tester called the prescribed view `can_execute(who=0x4C7cb73aC8F8999af21cfc9
 - After recovery, `can_execute(agent, "SEND", 100)` should return `true` **while evidence is fresh**. Do not mark case C PASS without live readbacks and transaction finality.
 - The original demo policy on `fix/security-hardening-v1` was independently checked and still serves version 3. Its deployed reference contract must remain untouched.
 
-**Do not publish adversarial policy V2 until the Lab V1 recovery audit and post-recovery authorization readback are recorded.**
+**V2 publication is now authorized:** the Lab V1 recovery audit and post-recovery authorization readback have both been recorded.
 
 ### Test C — V1 source restoration and successful recovery poll (2026-10-17)
 
@@ -257,7 +257,7 @@ User copied the complete transaction Explorer overview and returned a new `statu
 - Restored source was checked directly on GitHub: `examples/adversarial/current_policy.txt` has the exact same blob SHA (`26558d9e2b36b5e1c45025e7b62f35bc1ff6b1a9`) as the archived initial V1.
 - The Lab contract **remains** `0x4c80788eA0A3c80906bd365b95f4813ea64D215a`; demo contract `0xC67f64634b603cF3fe62fD3447FEedb3E4707E56` and its policy not modified.
 
-**Outcome: recovery state-transition PASS**, confirmed by the user-transcribed FINALIZED transaction, status readback and `audit_at(2)` confirming `RECOVERED`. **Still outstanding:** actual `can_execute(agent,"SEND",100)` returning `true` while the evidence is fresh. Do not publish `03_tightened_v2.txt` until this authorization readback is recorded.
+**Outcome: recovery FULL PASS**, confirmed by the user-transcribed FINALIZED transaction, status readback, `audit_at(2)` confirming `RECOVERED`, and a subsequent Studio Accepted read showing `can_execute(agent,"SEND",100) = true` (the `who` field was not reprinted). The precondition to publish the V2 tightening fixture is satisfied.
 
 ### Test C — recovery audit_at(2) confirmed (tester-reported)
 
@@ -278,4 +278,13 @@ After the successful and FINALIZED recovery `poll()` transaction `0xe3c1b26cdbaa
 
 The recovered source and quote digests **exactly match** the original `audit_at(0)` baseline, and this is a new record at revision 3, preserving the earlier revision-2 `FROZEN_VERSION_CONFLICT` evidence. Both source and audit history were retained with no redeployment.
 
-**Recovery ledger status:** finalized recovery and audit **PASS**. The tester has not yet supplied the expected **post-recovery authorization** readback. While `evidence_fresh=true`, call `can_execute(who=owner/agent, action="SEND", amount_cents=100)`, expected **`true`**. Because this contract enforces a one-hour evidence TTL, if it has expired before this check, first renew the observation via `poll()` and recapture the latest `status()`. Keep the Lab source at original V1 until authorization verification is complete.
+**Recovery ledger status: FULL PASS** for finalized recovery, audit, and restored authorization. The tester supplied the expected **post-recovery authorization** readback (`true SEND 100`) in the Studio Accepted read response. While `evidence_fresh=true`, call `can_execute(who=owner/agent, action="SEND", amount_cents=100)`, expected **`true`**. Because this contract enforces a one-hour evidence TTL, if it has expired before this check, first renew the observation via `poll()` and recapture the latest `status()`. Keep the Lab source at original V1 until authorization verification is complete.
+
+### Test C — post-recovery authorization confirmed (tester, 2026-10-17)
+
+- Test requested: `can_execute(who=0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb, action="SEND", amount_cents=100)`.
+- Studio read reported **Response (Accepted): `true`**, with the action `SEND` and amount `100`. The `who` field was not copied in the text; association to the configured agent comes from the agreed call parameters.
+- Prior same-argument read while `health=UNRESOLVED` returned `false`. After the exact V1 bytes were restored and a fresh `poll()` finalized, `health=OK`, `evidence_fresh=true`, the read returned `true`.
+- This completes the isolated Lab case **tamper detection → fail-closed freeze → exact-source recovery → restored authorization**, without an asset transfer or redeploy.
+
+**Case B & Case C: FULL PASS.** Lab policy V2 tightening may now be published at the *same Lab-only URL* to prepare the rollback test. Stop and record its poll and audit before publishing a V1 rollback source.
