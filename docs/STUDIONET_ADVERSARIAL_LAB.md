@@ -146,3 +146,15 @@ Use `contracts/consumer_fixture.py` as a second contract deployed on Studionet w
 - On the next owner `poll()`: expected `"UNRESOLVED"`, `health=UNRESOLVED`, `policy_status` remains the last known effective policy status (typically `ACTIVE`), `last_policy_version=1`, stored caps remain `10000/25000/0` but `can_execute` returns **false** for any amount.
 - Expected audit at `audit_at(1)`: `kind=FROZEN_VERSION_CONFLICT`, `revision=2` and a new document digest.
 - **Do not assert test B PASS** until a new transaction ID, finalized result, `status()` and audit readback are collected.
+
+### Test B source publication — ready for on-chain execution
+
+- **Published commit:** `a247ed8dc28292e5eee66cc8ea9a1a8f3f91fb49`.
+- **Pinned lab source (unchanged URL):** https://raw.githubusercontent.com/bearbaba/DRAIL/studionet-adversarial-lab/examples/adversarial/current_policy.txt
+- Confirmed GitHub raw source now reports **`POLICY_VERSION: 1`**, **SEND $90**, **SWAP $250**, **BRIDGE forbidden**. The initial V1 consensus accepted **SEND $100** and prior digest `43614571712be09b85df4452e8b797c6eb2943b422a408a1b4abda54843860a3`. Thus new source bytes conflict with a previously recorded same-version policy.
+- The original demonstration branch `fix/security-hardening-v1` was separately checked and **still serves V3**. Original deployed demo `0xC67f64634b603cF3fe62fD3447FEedb3E4707E56` was not upgraded or touched.
+- **Next action:** From the authorized Lab owner, call `poll()` on **Lab** `0x4c80788eA0A3c80906bd365b95f4813ea64D215a`, wait for Explorer FINALIZED, then copy `status()` and `audit_at(1)`.
+- **Expected response:** `UNRESOLVED`; audit `FROZEN_VERSION_CONFLICT`; `health=UNRESOLVED`, old effective stored caps unchanged, all `can_execute()` requests denied due to health. No new authorization should result from a forbidden version rewrite.
+- **Evidence status:** Tampered source has been published, but test transaction has not yet been submitted. This is a preparation step, not a completed test.
+
+**Next source action must wait for user-provided Test B transaction and state receipt.** Recovery will restore the archived exact original V1 snapshot, not publish another unauthorized version.
