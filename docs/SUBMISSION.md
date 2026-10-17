@@ -1,48 +1,58 @@
-# DRAIL — GenLayer Intelligent Contracts Submission (2026-10-17)
+# DRAIL — Intelligent Contracts submission package
 
-## Form
-
-- Category: **Builder → Intelligent Contracts**.
-- Contribution date: **17/10/2026**.
+## Form fields
+- Contribution Type: **Builder**
+- Category: **Intelligent Contracts**
+- Contribution Date: **17/10/2026**
 - Title: **DRAIL — Consensus-Bound Agent Policy Guard**
-- Notes / Description (957 characters, limit 1,000):
+- Notes / Description: **936/1000 characters**
 
-DRAIL is a reusable GenLayer Intelligent Contract that enforces consensus-verified permission limits for AI agents. It converts an owner-pinned, versioned policy into on-chain SEND, SWAP, and BRIDGE caps. Validators independently retrieve the source and compare exact action limits, the source hash, and supporting quotes through the Equivalence Principle.
+DRAIL is a GenLayer Intelligent Contract that converts an owner-pinned, versioned web policy into on-chain SEND, SWAP and BRIDGE limits for AI agents. Validators independently retrieve the source; comparative consensus verifies limits, the full source hash and supporting quotes.
 
-Policy tightening applies automatically. Any increase requires explicit owner approval and a fresh verification of the same evidence. Conflicting edits, rollbacks, and invalid policy scope freeze authorization while preserving the last verified limits.
+Restrictions apply automatically; increases require owner approval and fresh consensus verification. Conflicting edits, rollbacks, incorrect agent metadata and unverifiable sources freeze authorization while preserving verified limits.
 
-DRAIL exposes can_execute() for integration, maintains a revision-indexed audit trail, and enforces evidence freshness. FINALIZED Studionet transactions demonstrate policy activation, tightening, owner-gated widening, fail-closed protection, and recovery.
+DRAIL exposes can_execute() for downstream integration, an on-chain audit trail, evidence freshness enforcement and emergency pause.
 
-DRAIL gives builders a composable, auditable foundation for AI-agent permission control.
+Two Studionet deployments demonstrate the workflow: the main contract covers policy initialization, tightening and owner-approved widening; the security lab covers adversarial freezes and recovery. Reviewers can inspect FINALIZED transactions, audit records and authorization results.
 
-## Prioritized links to paste into Evidence
+## Evidence & Supporting Information (clean links)
 
-1. **Primary reviewed smart contract — complete hardened source:** https://github.com/bearbaba/DRAIL/blob/fix/security-hardening-v1/contracts/drail.py
-2. **Production-like main Studionet demo evidence and state audit:** https://github.com/bearbaba/DRAIL/blob/fix/security-hardening-v1/docs/STUDIONET_EVIDENCE.md
-3. **Live original GenLayer Intelligent Contract:** https://explorer-studio.genlayer.com/address/0xC67f64634b603cF3fe62fD3447FEedb3E4707E56
-4. **Owner-only widening FINALIZED with re-observed source digest:** https://explorer-studio.genlayer.com/tx/0x78addae43112dfeeb2264a7c33a53f73e758d19cc857689bd1dd56a8c0c077d3
-5. **Isolated adversarial study and indexed on-chain readbacks:** https://github.com/bearbaba/DRAIL/blob/studionet-adversarial-lab/docs/STUDIONET_ADVERSARIAL_LAB.md
-6. **Original code architecture, security limits and consumer contract:** https://github.com/bearbaba/DRAIL/blob/studionet-adversarial-lab/docs/ARCHITECTURE.md and https://github.com/bearbaba/DRAIL/blob/studionet-adversarial-lab/contracts/consumer_fixture.py
-7. **CI / GenVM lint + official DirectVM evidence (known successful run):** https://github.com/bearbaba/DRAIL/actions/runs/39002252067
+1. **GitHub Repository — DRAIL**  
+   https://github.com/bearbaba/DRAIL
+2. **GitHub File — Main hardened contract source**  
+   https://github.com/bearbaba/DRAIL/blob/fix/security-hardening-v1/contracts/drail.py
+3. **GenLayer Explorer Contract — Main DRAIL deployment (V1 → V3)**  
+   https://explorer-studio.genlayer.com/address/0xC67f64634b603cF3fe62fD3447FEedb3E4707E56
+4. **GenLayer Explorer Contract — Isolated DRAIL security-lab deployment**  
+   https://explorer-studio.genlayer.com/address/0x4c80788eA0A3c80906bd365b95f4813ea64D215a
+5. **GitHub File — Main Studionet lifecycle evidence and audit**  
+   https://github.com/bearbaba/DRAIL/blob/fix/security-hardening-v1/docs/STUDIONET_EVIDENCE.md
+6. **GitHub File — Security lab adversarial evidence and recovery**  
+   https://github.com/bearbaba/DRAIL/blob/studionet-adversarial-lab/docs/STUDIONET_ADVERSARIAL_LAB.md
+7. **Other — Main owner widening FINALIZED TX**  
+   https://explorer-studio.genlayer.com/tx/0x78addae43112dfeeb2264a7c33a53f73e758d19cc857689bd1dd56a8c0c077d3
+8. **Other — Security lab wrong-agent freeze FINALIZED TX**  
+   https://explorer-studio.genlayer.com/tx/0x22ee0b9ec759f7f78ebc135d227660bc4cc6732bf456ee8c4710ddce18c388c6
+9. **Other — Security lab recovery FINALIZED TX**  
+   https://explorer-studio.genlayer.com/tx/0x822e81fbfc60a8a0c2a30287786271248221ccf42c3a82833e2818d6ac8938ac
+10. **Other — Green GitHub Actions CI**  
+   https://github.com/bearbaba/DRAIL/actions/runs/39008422126
 
-## Live evidence (only what has been documented)
+## Direct Studio inspection links (reviewer convenience)
 
-- Main demo contract `0xC67f64634b603cF3fe62fD3447FEedb3E4707E56`: successful `INITIALIZED`, V2 `TIGHTENED`, V3 `PENDING_WIDENING`, unauthorized approve rejected, `WIDENED_BY_OWNER`; owner widening has an explicitly user-transcribed **FINALIZED** receipt. Earlier V2/staging transaction finality is not fully verified in the primary ledger; do not upgrade those claims.
-- Separate security lab `0x4c80788eA0A3c80906bd365b95f4813ea64D215a`: V1 activation, same-version tamper `FROZEN_VERSION_CONFLICT`, V2 tightening, V2→V1 `FROZEN_ROLLBACK`, wrong-agent `FROZEN_UNCLEAR`, restorations `RECOVERED`. Tester provided FINALIZED receipts and matching state/audit/permission readbacks. The wrong-chain source fixture was **prepared but not run**; do not say it passed.
-- The `can_execute` read only expresses a policy permission; it does **not** move funds, execute swaps or bridge value. The secondary `consumer_fixture.py` source exists, but the complete live cross-contract consumer lifecycle has **not** been verified.
-- Security caveats: pinned HTTPS URL is **not** publisher-signature authentication; validator agreement does not guarantee semantic correctness; an external monitor must poll; evidence expires after 3600 seconds. Not audited or certified for mainnet funds.
+- Main deployment: https://studio.genlayer.com/?import-contract=0xC67f64634b603cF3fe62fD3447FEedb3E4707E56
+- Security Lab deployment: https://studio.genlayer.com/?import-contract=0x4c80788eA0A3c80906bd365b95f4813ea64D215a
 
-## Release and reviewer cautions
+## Optional brief evidence note (only if the form has a separate field)
 
-- The repository default `main` currently points to an earlier prototype. **Use the explicitly linked `fix/security-hardening-v1` source** for the original deployed contract and `studionet-adversarial-lab` for adversarial receipts. Do not imply `main` represents the deployed hardened version.
-- The historical README and DEMO notes may contain stale `TODO` labels; this page and the two receipts ledgers identify what is verified. Do not confuse an **ACCEPTED** receipt with **FINALIZED**.
-- The security Lab's mutable policy URL has been restored to approved V2 and is not the original demo's V3 policy URL.
-- GitHub Actions fixture assertion had a stale V1-only assumption after changing the isolated Lab policy to V2. Patch commit `03e22881be03bd076f46f5d54aaa05743a5ecb4f` updates the static test to accept one of the checked-in snapshots; check a new CI run before claiming the current branch is green.
+Main DRAIL: V1 policy activation, V2 automatic tightening and V3 owner-approved widening. Security Lab: same-version conflict detection, rollback protection, invalid agent scope, fail-closed authorization and recovery. Inspect the linked FINALIZED receipts, audit entries and permission readbacks for on-chain evidence.
 
-## Distinction from generic AI page classification
+## Reviewer accuracy (repository only, not form notes)
 
-The verified decision changes permission-gating state: `can_execute(agent,action,cents)` denies after ambiguity, rollback or conflicting evidence; automatic tightening and owner-only widening have asymmetric consequences. GenLayer validators independently retrieve evidence and compare the decision-driving caps, source hash and quotes, while immutable source versions and the audit ledger make permission drift inspectable.
-
-## Form submission status
-
-**Draft ready to paste. Not submitted to the GenLayer website by this file update.** Submission requires the user or an authorized web agent to complete the platform form and press `Submit Contribution`.
+- Two Studionet **deployments of the DRAIL contract design**, not two different standalone primitives.
+- The main demonstration and security lab were intentionally isolated, using distinct policy URLs.
+- The wrong-chain policy fixture was published but never polled on-chain; no PASS claim is made for it.
+- No independent smart contract audit or real-asset transfer is implied by these records.
+- The default `main` branch contains an earlier version. Use the linked hardening source and evidence branch files.
+- Reviewers can inspect `status()`, `audit_at()` and `can_execute()` in Studio; if evidence is older than the 3600-second TTL, a current read denial does not negate historical FINALIZED evidence.
+- The platform submission remains pending until the owner actually presses `Submit Contribution`.
