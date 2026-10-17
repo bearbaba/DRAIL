@@ -8,7 +8,7 @@ This ledger separates **observed state submitted by the tester**, **automated CI
 - Contract: `0xC67f64634b603cF3fe62fD3447FEedb3E4707E56`
 - Studio import: https://studio.genlayer.com/?import-contract=0xC67f64634b603cF3fe62fD3447FEedb3E4707E56
 - Bootstrap `poll()` transaction (tester-provided): `0xbe88150877b36ce3c9b13b89b69340d606242b0c9e0b061c723a08d9ee23cdf2`
-- Explorer link pattern (check finality in browser): https://explorer-studio.genlayer.com/tx/0xbe88150877b36ce3c9b13b89b69340d606242b0c9e0b061c723a08d9ee23cdf2
+- Explorer transaction details provided by tester: https://explorer-studio.genlayer.com/tx/0xbe88150877b36ce3c9b13b89b69340d606242b0c9e0b061c723a08d9ee23cdf2
 - Source URL: https://raw.githubusercontent.com/bearbaba/DRAIL/fix/security-hardening-v1/examples/policy_v1.txt
 - Agent: `0x3333333333333333333333333333333333333333`
 - Owner and monitor: `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb`
@@ -30,11 +30,35 @@ This ledger separates **observed state submitted by the tester**, **automated CI
 | `last_source_hash` | `5a51bed000831d0bef023e0be671439386addf2217f0afea97de927c3f145c81` |
 | `pending` | `false` |
 
-**Evidence level:** Human-submitted full `status()` result and transaction ID. These show the initial policy activation had committed to observable Studio contract state when read. Exact validator votes, the transaction's finality state, and immutable linkage to the deployed code commit have not yet been independently checked. Do not claim fully finalized consensus or production readiness from this ledger alone.
+### Transaction details copied from GenLayer Explorer by tester
+
+| Explorer field | Reported value |
+| --- | --- |
+| Transaction status | **FINALIZED** |
+| Execution mode | Normal (Full Consensus) |
+| GenVM execution | SUCCESS |
+| Method | `poll` |
+| Return value | `"INITIALIZED"` |
+| Consensus result | Accepted |
+| Initial validators | 5 |
+| Rotation count | 0 |
+| Created at (Explorer display) | 2026-10-17 09:36:13 |
+| Sender | `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb` |
+| Target | `0xC67f64634b603cF3fe62fD3447FEedb3E4707E56` |
+| Value | 0 GEN |
+| Transaction nonce | 348 |
+
+Full equivalence-principle return value reproduced by the tester:
+
+```json
+{"bridge_cents":0,"bridge_quote":"BRIDGE is prohibited.","policy_version":1,"result":"VALID","send_cents":10000,"send_quote":"Agents may SEND up to $100.00 per operation.","source_hash":"5a51bed000831d0bef023e0be671439386addf2217f0afea97de927c3f145c81","swap_cents":25000,"swap_quote":"Agents may SWAP up to $250.00 per operation."}
+```
+
+**Evidence level:** Tester-supplied full Studio state readback **plus Explorer transaction-details transcription explicitly showing FINALIZED, SUCCESS and consensus Accepted**. This supports a finalized, successful first policy activation on Studionet. The Explorer SPA was not independently accessible via automated web retrieval, so the original transaction page should be reviewed directly by stewards. It does not prove the full version-change lifecycle, individual validator votes, publisher signatures, or production readiness. The deployed bytecode/source-to-commit linkage has not yet been independently attested.
 
 ### Outstanding live cases
 
-- [ ] Verify deployment and `poll` finality in Explorer.
+- [x] Tester inspected Explorer and supplied `poll()` status **FINALIZED**, GenVM **SUCCESS**, consensus **Accepted** (five initial validators). Independent external retrieval of the Explorer page still pending.
 - [ ] Record `audit_at(0)` (quote evidence, revision, provenance).
 - [ ] `can_execute(agent, "SEND", 8000)` => true while policy verification remains fresh.
 - [ ] `can_execute(agent, "SEND", 12000)` => false.
