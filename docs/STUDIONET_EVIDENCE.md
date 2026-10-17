@@ -208,6 +208,19 @@ The critical distinction is between **proposed policy quotes** and **currently e
 
 #### Approval tests awaiting evidence
 
-1. Call `approve_widening()` from a wallet other than `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb`. Expected failure: "owner only"; `status()` remains `pending=true`, effective caps `[5000,15000,0]`.
+1. **Executed:** `approve_widening()` from a non-owner wallet. Studio receipt shows `ACCEPTED` consensus, `ERROR` execution, `rollback owner only` from five validators all marked Agree. Post-error `status()` readback still outstanding.
 2. Call `approve_widening()` from owner with V3 live document unchanged. Expected success, effective caps `[20000,35000,2500]`, `pending=false`, `policy_status=ACTIVE`, and audit record `WIDENED_BY_OWNER` at index 3. The contract refetches source and requires identical digest, policy version and proposed caps.
 3. Record TX hashes and FINALIZED/failed status for both calls.
+
+### Unauthorized approve_widening — negative security test (tester screenshot)
+
+- TX ID transcribed from screenshot: `0x3d5964b46ce68a587281cbb52fd4d8dfdf13a2f3a630b93223dcb4417a8c5d1d`
+- Explorer URL (not independently checked): https://explorer-studio.genlayer.com/tx/0x3d5964b46ce68a587281cbb52fd4d8dfdf13a2f3a630b93223dcb4417a8c5d1d
+- Input: `{"method":"approve_widening"}`
+- Transaction status shown in Studio: **ACCEPTED** (consensus outcome)
+- Execution result shown in Studio: **ERROR**, output `None`
+- Validator set: **five entries**, each showed `[rollback] owner only` and `Agree`
+- Interpretation: consensus agreed that the unauthorized invocation must roll back; this is **not** a successful widening approval. The screenshot does not reveal the sender's address. The error is strong evidence that the caller was not `owner` as checked by the contract.
+- **Missing post-transaction verification:** read `status()` again and confirm `pending=true`, `policy_status=PENDING_WIDENING`, effective caps `[5000,15000,0]`, `revision=3`. Also record finalized transaction outcome in Explorer if possible.
+
+**Next planned positive test:** from the authorized owner `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb`, call `approve_widening()` only after confirming the pending state; the monitored policy URL still served V3 when last checked. Expect `WIDENED_BY_OWNER` audit record and newly effective caps `[20000,35000,2500]`.
