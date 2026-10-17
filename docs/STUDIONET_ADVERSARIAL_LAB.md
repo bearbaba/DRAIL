@@ -79,7 +79,7 @@ Use `contracts/consumer_fixture.py` as a second contract deployed on Studionet w
 | --- | --- | --- | --- | --- | --- |
 | Lab deployment + baseline | Lab V1 published in branch | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`poll()` FINALIZED](https://explorer-studio.genlayer.com/tx/0xb3fd92a84b91c250c9dc2e75df55646f2db3dff6c0380032add7275c6672f943) (tester-transcribed Explorer details) | `ACTIVE`, V1 caps `[10000,25000,0]`, `audit_at(0)=INITIALIZED`, revision 1 | BASELINE PASS |
 | Same-version conflict / recovery | Mutation `a247ed8`, restored `c347022` | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`UNRESOLVED` FINALIZED](https://explorer-studio.genlayer.com/tx/0xa26822c69c44da50da6ae7fa564a83ec6498ac672510293f8e1aae72ce0cd59c); [`ACTIVE` recovery FINALIZED](https://explorer-studio.genlayer.com/tx/0xe3c1b26cdbaa646604634af2efc69d3b361b64d1eb0319f4cc89f81f03999a8c) | version-conflict audit, SEND 100 denied while frozen; post-recovery `health=OK`, revision 3, baseline hash/caps restored | TAMPERING & RECOVERY FULL PASS |
-| V2 tightening + rollback | V2 `1fc7f8e`, rollback V1 `f0c0b0e`, restored V2 `cf120e0` | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [V2 poll FINALIZED](https://explorer-studio.genlayer.com/tx/0xd811f00da484fbfb7537f14a19a81389ff57a6f5bff6964f908f8a267e2b6373); [rollback poll FINALIZED](https://explorer-studio.genlayer.com/tx/0x148feed9dbf558dcd73136f14c32e1ea4d06147961a0324892f91d771f29971d) | Revision 5 `FROZEN_ROLLBACK`, V2 caps/hash preserved, SEND 100 denied; source V2 restored, re-poll pending | ROLLBACK FULL PASS; V2 RECOVERY PENDING |
+| V2 tightening + rollback + recovery | V2 `1fc7f8e`, rollback V1 `f0c0b0e`, restored V2 `cf120e0` | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [V2 poll FINALIZED](https://explorer-studio.genlayer.com/tx/0xd811f00da484fbfb7537f14a19a81389ff57a6f5bff6964f908f8a267e2b6373); [rollback FINALIZED](https://explorer-studio.genlayer.com/tx/0x148feed9dbf558dcd73136f14c32e1ea4d06147961a0324892f91d771f29971d); [V2 recovery FINALIZED](https://explorer-studio.genlayer.com/tx/0x878db09bfd700eb10fcd7cdee7328ce8975da6fad875d604e0fc419d57244520) | Rollback: `FROZEN_ROLLBACK`, SEND100 denied; recovery state: `health=OK`, V2 hash/caps retained, revision 6; recovery audit and positive view pending | ROLLBACK FULL PASS; V2 RECOVERY STATE+FINALITY PASS, remaining audit & authorization |
 | Invalid metadata / conflict / oversize | TBD | TBD | TBD | TBD | PENDING |
 | V3 stale widening approval | TBD | TBD | TBD | TBD | PENDING |
 | Pause + recover | TBD | TBD | TBD | TBD | PENDING |
@@ -449,7 +449,48 @@ Next step is to publish *exactly the previously accepted V2 file bytes* at the l
 - Immediately preceding on-chain state (user readback): `health=UNRESOLVED`, `last_policy_version=2`, `policy_status=RESTRICTED`, `revision=5`, approved caps `[5000,15000,0]`, `last_source_hash=87853722863dadb7fefd17e5e136387046caa78e6f16f5e273cfd785168ec4d2`.
 - **Next action:** owner calls `poll()` on isolated Lab `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` in **Normal (Full Consensus)** and waits for **FINALIZED**. Then collect `status()`, `audit_at(5)`, and `can_execute(agent,"SEND",100)` while evidence is fresh.
 - **Expected code-path outcome:** `poll()` returns **`"RESTRICTED"`** (not `"ACTIVE"`, because last effective V2 policy label is RESTRICTED), `health=OK`, version 2, revision **6**, caps `[5000,15000,0]`, pending false, last source hash equal to original V2 digest; `audit_at(5).kind=RECOVERED`; `can_execute(SEND,100)=true` when `evidence_fresh=true`.
-- **Not yet verified:** restored source publication is verified but no Test F transaction or on-chain readbacks have been supplied. Do not mark recovery PASS without those.
+- **Updated verification status:** tester supplied a FINALIZED Test F `poll()` transaction and post-poll `status()`; recovery state and finality PASS. `audit_at(5)` and positive `can_execute()` readback have not yet been supplied, so complete recovery verification remains pending.
 - **Isolation:** The original demo policy in `fix/security-hardening-v1` was independently checked again and is still version 3, SEND $200, SWAP $350. Original demo instance `0xC67f64634b603cF3fe62fD3447FEedb3E4707E56` untouched.
 
 **Do not publish a later adversarial fixture or change the restored Lab V2 source until recovery finality and audit are collected.**
+
+### Test F — FINALIZED V2 recovery after rollback (tester report, 2026-10-17)
+
+The tester supplied the Explorer transaction overview and the post-recovery `status()` readback for the **same Lab instance**, after the exact previously accepted V2 policy was restored to the pinned source URL.
+
+**Explorer:** https://explorer-studio.genlayer.com/tx/0x878db09bfd700eb10fcd7cdee7328ce8975da6fad875d604e0fc419d57244520
+
+| Field | Tester-transcribed receipt |
+| --- | --- |
+| `Status` | **FINALIZED** |
+| `Method` | `poll` |
+| `From` | `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb` |
+| `To` | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` |
+| `Nonce` | `358` |
+| `Created At` | Oct 17, 2026, 12:15:00 PM (Explorer display) |
+| `Execution Mode` | Normal; five initial validators; rotation count 0 |
+| `Consensus Result` | **Accepted** |
+| `GenVM Execution` | **SUCCESS** |
+| `Return` | **`"RESTRICTED"`** |
+
+Consensus equivalence output: `result=VALID`, `policy_version=2`, SEND `5000`, SWAP `15000`, BRIDGE `0`, exact quotes from accepted V2, and digest **`87853722863dadb7fefd17e5e136387046caa78e6f16f5e273cfd785168ec4d2`**.
+
+**Post-poll `status()`** (tester readback):
+
+| Field | Value |
+| --- | --- |
+| `health` | **`OK`** |
+| `initialized` | `true` |
+| `evidence_fresh` | `true` (at observation time) |
+| `policy_status` | **`RESTRICTED`** (correct: V2 remains tightened) |
+| `last_policy_version` | `2` |
+| `last_source_hash` | **`87853722863dadb7fefd17e5e136387046caa78e6f16f5e273cfd785168ec4d2`** |
+| `revision` | **`6`** |
+| `send_cents`, `swap_cents`, `bridge_cents` | **`5000`, `15000`, `0`** |
+| `last_verified_at` | `1792214100` |
+| `pending` | `false` |
+| `chain_id` | `61999` |
+
+**Assessment:** Recovery **state-transition + finality PASS**: the Lab returned from the confirmed rollback freeze (revision 5 `UNRESOLVED`) to healthy V2 policy (revision 6 `OK`), restoring accepted source provenance without raising caps or redeploying the instance. **Further readbacks required before marking full Test F PASS:** `audit_at(5)` must show `RECOVERED` (revision 6), and `can_execute(agent,"SEND",100)` should return `true` when evidence freshness permits. Do not infer these results from the transaction alone.
+
+**Preservation:** The isolated source remains exactly V2; do not mutate until these recovery checks are recorded. Main demo contract and policy V3 remain unchanged by the Lab restoration.
