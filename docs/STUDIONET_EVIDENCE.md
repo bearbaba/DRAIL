@@ -268,6 +268,36 @@ This completes the negative owner-gate test at the contract-state level. Next: a
 
 **Assessment:** This is convincing state-level evidence that pending V3 limits became effective following the authorized owner approval, unlike the unauthorized roll-back which left the caps unchanged. The policy version stays `3` because approval does not publish a new policy version; revision increases to `4`. The active source hash matches the staged V3 hash.
 
-**Limitations:** The owner-approval TX URL was supplied but an automated attempt to load the Explorer page failed, so independent FINALIZED confirmation remains outstanding. `audit_at(3)` has not yet been supplied; do not claim its `WIDENED_BY_OWNER` record was directly observed. Post-approval `can_execute` permission checks are also pending.
+**Limitations:** The owner-approval Explorer transaction details have now been transcribed by the tester: transaction status was **ACCEPTED**, not yet explicitly **FINALIZED**, even though the process timeline includes a "6Finalized" stage label. GenVM execution was **SUCCESS**, consensus result **Accepted**, and the result was **ACTIVE**. No independent finality claim is made. `audit_at(3)` has not yet been supplied; do not claim its `WIDENED_BY_OWNER` record was directly observed. Post-approval `can_execute` permission checks are also pending.
 
 **Next steps:** inspect Explorer status, capture `audit_at(3)`; while `evidence_fresh=true` test `can_execute(agent,"SEND",8000)=true`, `can_execute(agent,"SEND",25000)=false`, `can_execute(agent,"BRIDGE",100)=true`, and `can_execute(agent,"BRIDGE",3000)=false`. All rights are strictly authorization checks; the fixture does not transfer funds. Keep the monitored source at policy version 3.
+
+### Owner approval — detailed Explorer receipt (tester transcription)
+
+The tester copied Explorer transaction details on 2026-10-17 for transaction:
+https://explorer-studio.genlayer.com/tx/0x78addae43112dfeeb2264a7c33a53f73e758d19cc857689bd1dd56a8c0c077d3
+
+| Explorer field | Tester-provided result |
+| --- | --- |
+| **Status** | **ACCEPTED** (as of user's copied receipt; not claimed FINALIZED) |
+| From (owner) | `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb` |
+| To (DRAIL) | `0xC67f64634b603cF3fe62fD3447FEedb3E4707E56` |
+| Method | `approve_widening` |
+| Created at (Explorer display) | Oct 17, 2026, 10:44:02 AM |
+| Nonce | `351` |
+| Execution mode | Normal |
+| Initial validators | `5` |
+| Rotation count | `0` |
+| Consensus result | **Accepted** |
+| GenVM execution | **SUCCESS** |
+| Execution return value | `"ACTIVE"` |
+
+Equivalence-principle output, normalized JSON copied from tester's receipt:
+
+```json
+{"bridge_cents":2500,"bridge_quote":"Agents may BRIDGE up to $25.00 per operation.","policy_version":3,"result":"VALID","send_cents":20000,"send_quote":"Agents may SEND up to $200.00 per operation.","source_hash":"9e655041844ee3255486b4094dbb5badb6235532497d5155daf84a2ccedfc2fb","swap_cents":35000,"swap_quote":"Agents may SWAP up to $350.00 per operation."}
+```
+
+The result confirms that source was re-observed with proposed V3 caps, quotes and the same digest that was staged. Combined with the separately provided state readback (`ACTIVE`, no pending proposal, `revision=4`), this supports an accepted and successfully executed owner-gated approval. The visible timeline's `6Finalized` label is not treated as a substitute for the overview's **Status: FINALIZED**. Re-check finality before making that stronger claim.
+
+**Pending:** copy `audit_at(3)` and verify `kind=WIDENED_BY_OWNER`, `revision=4`; then run post-approval authorization boundary checks, with finality verification when available.
