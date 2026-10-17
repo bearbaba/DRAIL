@@ -155,7 +155,7 @@ Use `contracts/consumer_fixture.py` as a second contract deployed on Studionet w
 - The original demonstration branch `fix/security-hardening-v1` was separately checked and **still serves V3**. Original deployed demo `0xC67f64634b603cF3fe62fD3447FEedb3E4707E56` was not upgraded or touched.
 - **Next action:** From the authorized Lab owner, call `poll()` on **Lab** `0x4c80788eA0A3c80906bd365b95f4813ea64D215a`, wait for Explorer FINALIZED, then copy `status()` and `audit_at(1)`.
 - **Expected response:** `UNRESOLVED`; audit `FROZEN_VERSION_CONFLICT`; `health=UNRESOLVED`, old effective stored caps unchanged, all `can_execute()` requests denied due to health. No new authorization should result from a forbidden version rewrite.
-- **Evidence status:** Same-version tampering `poll()` has FINALIZED and returned `UNRESOLVED` with old caps intact and `health=UNRESOLVED` per user-supplied Explorer receipt and Studio status. `audit_at(1)` and `can_execute` fail-closed readbacks still need collecting before recovery.
+- **Evidence status:** Same-version tampering `poll()` has FINALIZED and returned `UNRESOLVED` with old caps intact and `health=UNRESOLVED` per user-supplied Explorer receipt and Studio status. `audit_at(1)` confirms `FROZEN_VERSION_CONFLICT` with disputed source and preserved cap; the `can_execute` fail-closed readback is still needed before recovery.
 
 **Next source action waits for `audit_at(1)` and a permission-denial readback.** Recovery will restore the archived exact original V1 snapshot, not publish another unauthorized version.
 
@@ -197,6 +197,29 @@ Use `contracts/consumer_fixture.py` as a second contract deployed on Studionet w
 | `last_verified_at` | `1792211544`, unchanged |
 | `pending` | `false` |
 
-**Interpretation:** The source was intelligible to consensus but its source hash conflicted with the already-approved same-version baseline. The contract rejected the unauthorized in-place revision, kept its last effective limits, froze its health and returned UNRESOLVED. This is **PASS for detection/state freeze**. The audit reason and failure-closed authorization still need direct read method receipts before calling the entire Test B case fully complete.
+**Interpretation:** The source was intelligible to consensus but its source hash conflicted with the already-approved same-version baseline. The contract rejected the unauthorized in-place revision, kept its last effective limits, froze its health and returned UNRESOLVED. This is **PASS for detection/state freeze**. The audit reason is now directly confirmed by `audit_at(1)`; fail-closed authorization still needs a `can_execute` readback before calling the entire Test B case fully complete.
 
-**Do not mutate the lab source yet.** On the same instance, read `audit_at(1)` (expected `kind=FROZEN_VERSION_CONFLICT` and `source_sha256=47a2...`) and call `can_execute(agent, "SEND", 100)` (expected `false`). Once readbacks are captured, restore the exact initial V1 snapshot and poll to check recovery. Main demo on `fix/security-hardening-v1` remains untouched.
+**Do not mutate the lab source yet.** On the same instance call `can_execute(agent, "SEND", 100)` (expected `false`) to confirm the frozen health actually blocks authorization. Once readbacks are captured, restore the exact initial V1 snapshot and poll to check recovery. Main demo on `fix/security-hardening-v1` remains untouched.
+
+### Test B — audit_at(1) readback (reported by tester)
+
+The tester returned the full audit entry after the finalized same-version tampering `poll()`:
+
+| Field | Readback |
+| --- | --- |
+| `actor` | `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb` |
+| `kind` | **`FROZEN_VERSION_CONFLICT`** |
+| `policy_version` | `1` |
+| `revision` | `2` |
+| `send_cents` | `10000` (preserved baseline cap) |
+| `send_quote` | `Agents may SEND up to $90.00 per operation.` (disputed newer source) |
+| `swap_cents` | `25000` (preserved) |
+| `swap_quote` | `Agents may SWAP up to $250.00 per operation.` |
+| `bridge_cents` | `0` (preserved) |
+| `bridge_quote` | `BRIDGE is prohibited.` |
+| `source_sha256` | `47a2a86548f4cf44f53d1b72e75f0b4b21c2ccbb401f4a41cd75f8f71391d6be` |
+| `quote_sha256` | `8aad32d16d5286a4b033473fc8fc1907a4ebfbe13147b8235c641a225c1f8443` |
+
+**Audit interpretation:** A quote from the invalid replacement document is retained as *evidence of an attempted policy change*, while the effective cap remains unchanged. The mismatched dollar amounts in quote and cap are intentional and accurately signal the conflict; they do NOT mean the tampered cap was accepted. The `source_sha256` records the conflicting document and the contract's `last_source_hash` stays on the original baseline. The explicit audit kind confirms why the contract froze.
+
+**Verdict so far:** same-version tamper detection, preservation of effective caps, and evidence audit are confirmed. Pending final fail-closed authorization check: `can_execute(0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb, "SEND", 100) == false`. Do not restore the baseline policy URL until the permission check is recorded.
