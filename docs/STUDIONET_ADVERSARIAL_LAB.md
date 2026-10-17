@@ -588,3 +588,9 @@ The tester additionally reported Studio **Response (Accepted): `false`** for the
 **Test G FULL PASS:** wrong-agent metadata was rejected as `UNCLEAR`, TX `poll()` was **FINALIZED** with return `UNRESOLVED`, stored policy remained V2, audit captured the refused source digest with empty rule quotes, and `can_execute` denied SEND $1. No real transfer or live-asset transaction was executed.
 
 Next: restore the byte-identical approved V2 Lab policy `03_tightened_v2.txt` at the same isolated URL. Then test `poll()` recovery and archive revision 8 as `RECOVERED`; do NOT assume the contract recovers merely because the off-chain file was restored.
+
+### Test H — restore V2 source after wrong-agent case
+
+Lab-only restoration commit: `09f686051bf23aeedac3c7afa41834c4c1242f4f`. The public current policy was fetched and verified byte-identical to `snapshots/03_tightened_v2.txt` (V2 SEND $50, SWAP $150; correct Lab agent and Studionet chain). Main demo branch still serves V3.
+
+On-chain Test G freeze remains until a new finalized `poll()` from the Lab owner. Expected after poll: `RESTRICTED`, `health=OK`, `revision=8`, accepted caps `[5000,15000,0]`, `audit_at(7).kind=RECOVERED`, `can_execute(SEND,100)=true` while evidence fresh. No recovery transaction has been supplied yet. Do not change Lab policy to wrong-chain fixture until Test H is verified.
