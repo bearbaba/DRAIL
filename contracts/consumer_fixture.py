@@ -13,7 +13,16 @@ class DrailConsumerFixture(gl.Contract):
     executed: u256
 
     def __init__(self, guard: Address):
-        addr = guard if isinstance(guard, Address) else Address(guard)
+        if isinstance(guard, Address):
+            addr = guard
+        elif type(guard) is int:
+            if not 0 <= guard < (1 << 160):
+                raise gl.vm.UserError("invalid guard address")
+            addr = Address("0x" + format(guard, "040x"))
+        elif isinstance(guard, str) and len(guard) == 42 and guard.startswith("0x"):
+            addr = Address(guard)
+        else:
+            raise gl.vm.UserError("invalid guard address")
         if addr == Address("0x0000000000000000000000000000000000000000"):
             raise gl.vm.UserError("guard must be deployed and nonzero")
         self.guard = addr

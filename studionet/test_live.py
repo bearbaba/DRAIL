@@ -48,3 +48,15 @@ def test_deploy_and_live_consensus():
     for action in ('SEND', 'SWAP', 'BRIDGE'):
         cap = int(result[action.lower() + '_cents'])
         assert c.can_execute(args=[agent, action, 1]).call() == (cap >= 1)
+
+
+def test_studio_integer_constructor_compatibility():
+    agent_int = int('0x3333333333333333333333333333333333333333', 16)
+    monitor_int = int('0x0000000000000000000000000000000000001234', 16)
+    url = os.environ.get('DRAIL_AUTHORITY_URL',
+       'https://raw.githubusercontent.com/bearbaba/DRAIL/fix/security-hardening-v1/examples/policy_v1.txt')
+    contract = get_contract_factory('Drail').deploy(args=[url, agent_int, monitor_int])
+    state = json.loads(contract.status().call())
+    assert state['agent'].lower() == '0x3333333333333333333333333333333333333333'
+    assert state['monitor'].lower() == '0x0000000000000000000000000000000000001234'
+    assert state['initialized'] is False

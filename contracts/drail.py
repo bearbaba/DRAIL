@@ -98,6 +98,25 @@ def require(ok: bool, message: str) -> None:
         raise gl.vm.UserError(message)
 
 
+
+def normalize_address(value, label: str) -> Address:
+    """Normalize GenLayer Studio integer or hex address ABI inputs."""
+    if isinstance(value, Address):
+        return value
+    if type(value) is int:
+        require(0 <= value < (1 << 160), "invalid " + label)
+        return Address("0x" + format(value, "040x"))
+    if isinstance(value, str):
+        require(len(value) == 42 and value.startswith("0x") and
+                all(c in "0123456789abcdefABCDEF" for c in value[2:]),
+                "invalid " + label)
+        return Address(value)
+    if isinstance(value, bytes):
+        require(len(value) == 20, "invalid " + label)
+        return Address(value)
+    raise gl.vm.UserError("invalid " + label)
+
+
 def canonical(obj) -> str:
     return json.dumps(obj, sort_keys=True, separators=(",", ":"))
 
@@ -183,8 +202,8 @@ class Drail(gl.Contract):
         require(host[0] != "." and host[-1] != "." and
                 all(c in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-." for c in host),
                 "invalid authority hostname")
-        who = agent if isinstance(agent, Address) else Address(agent)
-        watcher = monitor if isinstance(monitor, Address) else Address(monitor)
+        who = normalize_address(agent, "agent")
+        watcher = normalize_address(monitor, "monitor")
         zero = Address("0x0000000000000000000000000000000000000000")
         require(who != zero and watcher != zero, "agent and monitor required")
         self.owner = gl.message.sender_address
@@ -465,8 +484,7 @@ SOURCE ({url}):\n---\n{page}\n---"""
     @gl.public.write
     def change_monitor(self, new_monitor: Address) -> None:
         require(gl.message.sender_address == self.owner, "owner only")
-        who = (new_monitor if isinstance(new_monitor, Address)
-               else Address(new_monitor))
+        who = normalize_address(new_monitor, "monitor")
         require(who != Address("0x0000000000000000000000000000000000000000"),
                 "invalid monitor")
         self.monitor = who
@@ -487,7 +505,7 @@ SOURCE ({url}):\n---\n{page}\n---"""
 
     @gl.public.view
     def can_execute(self, who: Address, action: str, amount_cents: int) -> bool:
-        actor = who if isinstance(who, Address) else Address(who)
+        actor = normalize_address(who, "agent")
         if not self.initialized or self.health != "OK" or actor != self.agent:
             return False
         verified_at = int(self.last_verified_at)

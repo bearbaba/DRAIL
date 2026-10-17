@@ -584,3 +584,41 @@ def test_unbounded_exception_does_not_create_autonomous_cap(ctx):
     svc.response['send_quote'] = clause
     assert c.poll() == 'UNRESOLVED'
     assert not c.initialized
+
+
+def test_studio_integer_address_constructor(ctx):
+    c, svc, actor, set_doc = ctx
+    module = sys.modules['drail_test_module']
+    instance = module.Drail('https://policy.example.org/current', int(AGENT, 16), int(WATCHER, 16))
+    assert instance.agent.as_hex.lower() == AGENT
+    assert instance.monitor.as_hex.lower() == WATCHER
+    assert instance.can_execute(int(AGENT, 16), 'SEND', 1) is False
+
+
+def test_studio_integer_address_validation(ctx):
+    c, svc, actor, set_doc = ctx
+    module = sys.modules['drail_test_module']
+    low = 0x12345
+    instance = module.Drail('https://policy.example.org/current', low, int(WATCHER, 16))
+    assert instance.agent.as_hex.lower() == '0x' + format(low, '040x')
+    for bad in (True, -1, 1 << 160, 1 << 200, '0x33', {}, None):
+        with pytest.raises(ValueError, match='invalid'):
+            module.Drail('https://policy.example.org/current', bad, int(WATCHER, 16))
+        with pytest.raises(ValueError, match='invalid'):
+            module.Drail('https://policy.example.org/current', int(AGENT, 16), bad)
+
+
+def test_studio_integer_monitor_rotation_and_consumer(ctx):
+    c, svc, actor, set_doc = ctx
+    c.change_monitor(int(STRANGER, 16))
+    assert c.monitor.as_hex.lower() == STRANGER
+    import importlib.util
+    path = pathlib.Path(__file__).resolve().parents[1] / 'contracts' / 'consumer_fixture.py'
+    spec = importlib.util.spec_from_file_location('drail_consumer_int_abi', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    fixture = module.DrailConsumerFixture(int(WATCHER, 16))
+    assert fixture.guard.as_hex.lower() == WATCHER
+    for bad in (True, -1, 1 << 160, 0):
+        with pytest.raises(ValueError):
+            module.DrailConsumerFixture(bad)

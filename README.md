@@ -185,3 +185,7 @@ source code and permission drift architecture are independently authored.
 ## Evidence freshness gate (security hardening)
 
 An allowed operation requires a successful GenLayer consensus read in the last **3600 seconds**. The contract uses the deterministic GenVM transaction clock, not a scheduler. Calls after expiry are denied without a state-changing transaction; a successful same-policy `poll()` refreshes the timestamp without adding redundant audit records. Invalid, failed, rollback or conflicting observations never refresh permissions. The owner must ensure availability of a reliable monitor to prevent an outage, and cannot rely on this mechanism for instant revocation or proving that the source is publisher-signed. See [SECURITY](docs/SECURITY.md).
+
+## Studio integer address compatibility
+
+GenLayer Studio may deliver typed address fields as a 160-bit integer. Passing an integer directly to Address() fails with OverflowError because the runtime interprets it as a buffer size. Constructor inputs, monitor rotation, permission checks and the consumer now normalize bounded integer addresses to 40-digit hexadecimal addresses. Reload the source file in Studio after updates; previously imported Python tabs are not updated automatically.

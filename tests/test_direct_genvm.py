@@ -36,3 +36,14 @@ def test_real_sdk_rejects_non_owner_update(guard, direct_vm, direct_alice, direc
     with direct_vm.prank(direct_alice):
         with direct_vm.expect_revert("owner only"):
             guard.change_monitor(direct_bob)
+
+
+def test_real_sdk_studio_integer_address_constructor(direct_deploy):
+    agent_int = int('0x3333333333333333333333333333333333333333', 16)
+    monitor_int = int('0x0000000000000000000000000000000000001234', 16)
+    guard = direct_deploy('contracts/drail.py', 'https://policy.example.org/current',
+                          agent_int, monitor_int)
+    state = json.loads(guard.status())
+    assert state['agent'].lower() == '0x3333333333333333333333333333333333333333'
+    assert state['monitor'].lower() == '0x0000000000000000000000000000000000001234'
+    assert guard.can_execute(agent_int, 'SEND', 1) is False
