@@ -517,3 +517,19 @@ The tester then called the prescribed view `can_execute(who=0x4C7cb73aC8F8999af2
 **Test F FULL PASS**: policy rollback denied, frozen, audited; exact original V2 bytes restored; successful FINALIZED recovery to `health=OK`; `RECOVERED` audit confirms accepted V2 evidence; SEND $1 allowed again while fresh. No actual asset transfers were performed.
 
 **Next planned attack:** malformed policy agent binding (`05_wrong_agent_v2.txt`): metadata says `0x3333333333333333333333333333333333333333` instead of the contract's configured agent. The contract code calls `policy_envelope(document, expected_agent, chain_id)` before any AI extraction; expected observation result `UNCLEAR`, freeze `FROZEN_UNCLEAR`, and authorization denial. Keep source and domain exactly on Lab branch, and do not mutate the original demo branch.
+
+### Test G — Wrong-agent policy scope attack PUBLISHED (live poll pending)
+
+- **Lab-only attack publication commit:** `c635e62c992a6af6c8d9e9910d2629c438e5a39c`.
+- **URL (unchanged, isolated Lab source):** https://raw.githubusercontent.com/bearbaba/DRAIL/studionet-adversarial-lab/examples/adversarial/current_policy.txt
+- Direct raw GitHub fetch verified **byte-for-byte equality** with archived `examples/adversarial/snapshots/05_wrong_agent_v2.txt` (blob SHA `dea1b27a675e717d4fcc284b9389f22c248246fe`).
+- Source version **2**; SEND $50, SWAP $150, BRIDGE prohibited — same limits as approved V2. Only `AGENT` metadata changed from configured Lab wallet `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb` to **`0x3333333333333333333333333333333333333333`**; chain stays `61999`.
+- The deployed Lab contract stays `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` with accepted V2 revision **6**, `health=OK`, accepted digest `87853722863dadb7fefd17e5e136387046caa78e6f16f5e273cfd785168ec4d2`, caps `[5000,15000,0]`, prior to the Test G poll.
+- Verified contract source `poll()` calls `_observe()`, and `_observe()` validates `policy_envelope(document, agent_hex, chain_id)` **before** AI text inference. Wrong-agent envelope should return `result=UNCLEAR` with the mismatched source digest, not `VALID`, and `poll()` should archive **`FROZEN_UNCLEAR`** while switching `health=UNRESOLVED`.
+- **Predicted state after a FINALIZED, successful `poll()`:** return `"UNRESOLVED"`, `health=UNRESOLVED`, `evidence_fresh=false`, **last accepted version stays 2**, accepted V2 digest unchanged, effective caps remain `[5000,15000,0]`, `revision=7`, `pending=false`, historical `policy_status=RESTRICTED`.
+- **Predicted audit:** `audit_at(6).kind=FROZEN_UNCLEAR`, `revision=7`, `policy_version=2`, effective V2 caps preserved. The audit may have no quotes / quote digest for an `UNCLEAR` source: capture the actual record rather than assuming those fields.
+- **Predicted permission read:** `can_execute(who=0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb,action="SEND",amount_cents=100) = false` after the finalized freeze.
+- **No live Test G Explorer TX or chain readback has been provided yet.** These are only code-path expectations and the published-source evidence, not a live test PASS.
+- **Isolation guard:** the established demo URL on `fix/security-hardening-v1` was independently read and remains original **V3**, SEND $200 / SWAP $350. Never modify or poll the original demo contract for these tests.
+
+**Next requested evidence:** on the same Lab instance, run `poll()` as owner in Normal/Full Consensus; wait for explicit **FINALIZED**, then send `status()`, `audit_at(6)`, and `can_execute(agent,"SEND",100)`. Do **not** restore V2 or publish the wrong-chain fixture until the wrong-agent denial is captured and recorded.
