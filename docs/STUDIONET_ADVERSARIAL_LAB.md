@@ -606,6 +606,14 @@ On-chain Test G freeze remains until a new finalized `poll()` from the Lab owner
 - Source digest in `last_source_hash=87853722863dadb7fefd17e5e136387046caa78e6f16f5e273cfd785168ec4d2` is identical to the previously accepted V2 digest. `last_verified_at=1792214936`; max evidence age `3600` seconds. Owner, agent and monitor remain the configured Test Lab wallet; chain `61999`.
 - Repo inspection reconfirmed the isolated Lab `current_policy.txt` byte-identical to `snapshots/03_tightened_v2.txt`. No source changes needed.
 
-**Evidence status: Recovery state and transaction finality PASS.** Test H is not fully closed until the tester provides `audit_at(7)`, expected `kind=RECOVERED`, `revision=8`, V2 caps and digests, and a positive `can_execute(who=agent,action="SEND",amount_cents=100)` while evidence remains fresh. If evidence expires, repeat `poll()` and interpret the audit index based on actual `audit_count()` before reading the audit.
+**Evidence status: Test H FULL PASS.** After the FINALIZED recovery `poll()`, the tester supplied `audit_at(7)=RECOVERED`, version 2, revision 8 and original V2 source/quote digests, plus `can_execute(SEND,100)=true`. If evidence expires, repeat `poll()` and interpret the audit index based on actual `audit_count()` before reading the audit.
 
-**Keep the Lab V2 policy fixed.** Do not publish the wrong-chain fixture `06_wrong_chain_v2.txt` until those readbacks are recorded; original demo V3 must remain unaffected.
+**Test H gate now complete:** V2 recovery audit and restored SEND 100 permission have been recorded. Lab-only wrong-chain fixture `06_wrong_chain_v2.txt` may now be published for the next isolated attack. Original demo V3 remains out of scope.
+
+### Test H — recovered V2 audit and permission readback (2026-10-17)
+
+Tester provided `audit_at(7)`: `kind=RECOVERED`, `revision=8`, `policy_version=2`, `actor=0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb`, caps `send_cents=5000`, `swap_cents=15000`, `bridge_cents=0`. Quotes: "Agents may SEND up to $50.00 per operation.", "Agents may SWAP up to $150.00 per operation.", "BRIDGE is prohibited.". Source digest `87853722863dadb7fefd17e5e136387046caa78e6f16f5e273cfd785168ec4d2`, quote digest `b972dc7aa95303ee14fa397c589f75c5fb68b9d9cad19f2d87a735174d4f1134` match the original approved V2 audit exactly.
+
+Tester additionally reported **`SEND 100 TRUE`** as the post-recovery `can_execute()` response. The wallet field was not reprinted; interpretation assumes the previously prescribed Lab agent. The preceding `poll()` TX `0x822e81fbfc60a8a0c2a30287786271248221ccf42c3a82833e2818d6ac8938ac` was FINALIZED and returned `RESTRICTED`, `health=OK`, revision 8, with fresh V2 evidence. This completes the fail-closed recovery cycle for the wrong-agent attack.
+
+**Test H FULL PASS:** correct agent V2 source accepted again, freeze cleared, source/quote digests preserved, and SEND $1 permitted under a fresh $50 SEND cap. No real transfers performed. Next: isolated wrong-chain fixture, not yet published at the moment of this ledger entry.
