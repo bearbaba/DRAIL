@@ -104,3 +104,7 @@ The version metadata remains publisher-controlled and is not cryptographically
 signed. Freshness requires an external monitor because this runner does not
 supply a verified expiry clock to DRAIL. Cross-contract consumers must wait for
 finality and must not assume a `view` alone supplies global atomicity.
+
+## Verification freshness and conditions
+
+An authorized successful policy observation updates `last_verified_at` using the GenVM deterministic transaction clock. The permission view enforces `0 <= current_time - last_verified_at <= 3600`, and denies access if verification is missing, future-dated or expired. Revalidating an unchanged policy renews freshness without spamming the audit revision history. Failed or reverted consensus does not extend the age window. The view may return denied while the stored `health` remains `OK`, which represents the last agreed evidence outcome rather than freshness. Positive permission quotes that include conditions, approvals, exceptions or unbounded limits are deliberately not translated into a usable autonomous cap.

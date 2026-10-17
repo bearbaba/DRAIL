@@ -17,11 +17,14 @@ from dataclasses import dataclass
 import hashlib
 import json
 import re
+import time
 
 ACTIONS = ("SEND", "SWAP", "BRIDGE")
 MAX_CENTS = 10 ** 12
 MAX_POLICY_BYTES = 8192
 MAX_POLICY_VERSION = 2 ** 63 - 1
+# Expire stale permissions even when a monitor stops submitting polls.
+MAX_EVIDENCE_AGE_SECONDS = 3600
 POLICY_MAGIC = "DRAIL_POLICY_V1"
 
 
@@ -77,6 +80,11 @@ def quote_supports_cap(action: str, quote: str, cents: int) -> bool:
     amounts = re.findall(r"\$([0-9]{1,10})(?:\.([0-9]{2}))?(?![0-9]|\.[0-9])", quote)
     if cents == 0:
         return forbidden
+    # A conditional/unbounded grant cannot safely become an autonomous cap.
+    if re.search(r"\b(if|unless|until|after|provided|conditional|subject|except|pending|"
+                 r"approval|approved|authorization|consent|sign(?:ed|ature)?|"
+                 r"requires?|must|supervisor|manager|unlimited)\b", low):
+        return False
     if forbidden or len(amounts) != 1 or "operation" not in low:
         return False
     if re.search(r"\b(up to|maximum|at most|limit)\b", low) is None:
@@ -112,6 +120,11 @@ def parse_json(raw: str) -> dict:
     return value
 
 
+def now_seconds() -> int:
+    # GenVM maps Python time.time() to a deterministic transaction timestamp.
+    return int(time.time())
+
+
 def positive_cents(value) -> int:
     require(type(value) is int and 0 <= value <= MAX_CENTS, "invalid cap")
     return value
@@ -142,6 +155,7 @@ class Drail(gl.Contract):
     source_scope: str
     chain_id: str
     last_policy_version: u256
+    last_verified_at: u256
     pending_policy_version: u256
     initialized: bool
     health: str  # OK | UNRESOLVED
@@ -180,6 +194,7 @@ class Drail(gl.Contract):
         self.source_scope = "Agent wallet SEND, SWAP and BRIDGE limits in USD cents"
         self.chain_id = str(gl.message.chain_id)
         self.last_policy_version = u256(0)
+        self.last_verified_at = u256(0)
         self.pending_policy_version = u256(0)
         self.initialized = False
         self.health = "UNRESOLVED"
@@ -359,6 +374,7 @@ SOURCE ({url}):\n---\n{page}\n---"""
             self.policy_status = "REVOKED" if not any(new) else "ACTIVE"
             self.last_source_hash = source_hash
             self.last_policy_version = u256(policy_version)
+            self.last_verified_at = u256(now_seconds())
             self._archive("INITIALIZED", source_hash, quote_hash, quotes)
             return "INITIALIZED"
 
@@ -388,6 +404,7 @@ SOURCE ({url}):\n---\n{page}\n---"""
         self.health = "OK"
         self.last_source_hash = source_hash
         self.last_policy_version = u256(policy_version)
+        self.last_verified_at = u256(now_seconds())
 
         if widened:
             # Mixed changes: reductions take effect now; increases stay gated.
@@ -439,6 +456,7 @@ SOURCE ({url}):\n---\n{page}\n---"""
         quote_hash = sha256(canonical(quotes))
         self._write_caps(actual_caps)
         self.last_source_hash = expected_hash
+        self.last_verified_at = u256(now_seconds())
         self.policy_status = "ACTIVE" if any(actual_caps) else "REVOKED"
         self._clear_pending()
         self._archive("WIDENED_BY_OWNER", expected_hash, quote_hash, quotes)
@@ -472,6 +490,11 @@ SOURCE ({url}):\n---\n{page}\n---"""
         actor = who if isinstance(who, Address) else Address(who)
         if not self.initialized or self.health != "OK" or actor != self.agent:
             return False
+        verified_at = int(self.last_verified_at)
+        current = now_seconds()
+        if (verified_at <= 0 or current < verified_at or
+                current - verified_at > MAX_EVIDENCE_AGE_SECONDS):
+            return False
         action_code = action.upper() if isinstance(action, str) else ""
         if action_code not in ACTIONS or not isinstance(amount_cents, int) or isinstance(amount_cents, bool):
             return False
@@ -494,6 +517,12 @@ SOURCE ({url}):\n---\n{page}\n---"""
             "pending": self.pending, "pending_source_hash": self.pending_source_hash,
             "pending_policy_version": int(self.pending_policy_version),
             "last_policy_version": int(self.last_policy_version),
+            "last_verified_at": int(self.last_verified_at),
+            "max_evidence_age_seconds": MAX_EVIDENCE_AGE_SECONDS,
+            "evidence_fresh": (self.initialized and self.health == "OK" and
+                int(self.last_verified_at) > 0 and
+                now_seconds() >= int(self.last_verified_at) and
+                now_seconds() - int(self.last_verified_at) <= MAX_EVIDENCE_AGE_SECONDS),
             "chain_id": self.chain_id,
             "pending_caps": [int(self.pending_send), int(self.pending_swap),
                              int(self.pending_bridge)],

@@ -44,13 +44,14 @@ contracts can enforce.
    the latest source is re-read and matches the staged hash and caps.
 5. **Mixed change safety.** When an update tightens SEND but loosens SWAP,
    SEND tightens immediately; SWAP cannot widen without owner consent.
-6. **Fail-closed execution view.** `UNRESOLVED` blocks all new authorization
+6. **Bounded freshness:** each successful validator-backed observation renews a deterministic timestamp. `can_execute` denies any request after one hour without a successful source recheck, including when the monitor disappears. This is a conservative permission timeout, NOT proof that the publisher's latest policy was read. Conditional/unlimited positive cap excerpts are denied rather than guessed.
+7. **Fail-closed execution view. `UNRESOLVED` blocks all new authorization
    even though last known policy limits remain preserved for future recovery.
    Deterministic `emergency_pause()` covers consensus disagreement or RPC
    failures that cause `poll()` itself to revert.
-7. **Inspectable append-only audit trail.** Each material change stores caller,
+8. **Inspectable append-only audit trail. Each material change stores caller,
    source digest, supporting quotes, all effective caps, and revision index.
-8. **Composable enforcement.** Consumers call `can_execute(agent, action,
+9. **Composable enforcement.** Consumers call `can_execute(agent, action,
    amount_cents)`; an example secondary GenLayer contract demonstrates this
    read-based gate without moving assets.
 
@@ -119,7 +120,7 @@ calls `poll()` and the pinned source is successfully validated.
 | `emergency_pause()` | owner / monitor | Freeze authorizations without consensus (e.g. after failed transaction) |
 | `change_monitor(address)` | owner | Change authorized watcher |
 | `can_execute(agent, action, amount_cents)` | view | Enforce permission and approved cap |
-| `status()` | view | Inspect effective/pending limits and evidence digest |
+| `status()` | view | Inspect effective/pending limits, freshness timestamp and evidence digest |
 | `audit_count()`, `audit_at(i)` | view | Historical revision evidence and actor |
 
 Caps are *USD cents*, not GEN or token units. **Consumer adapters are
@@ -180,3 +181,7 @@ See [DEMO](docs/DEMO.md) and [SECURITY](docs/SECURITY.md).
 
 MIT license. Inspiration from published GenLayer consensus primitives; DRAIL's
 source code and permission drift architecture are independently authored.
+
+## Evidence freshness gate (security hardening)
+
+An allowed operation requires a successful GenLayer consensus read in the last **3600 seconds**. The contract uses the deterministic GenVM transaction clock, not a scheduler. Calls after expiry are denied without a state-changing transaction; a successful same-policy `poll()` refreshes the timestamp without adding redundant audit records. Invalid, failed, rollback or conflicting observations never refresh permissions. The owner must ensure availability of a reliable monitor to prevent an outage, and cannot rely on this mechanism for instant revocation or proving that the source is publisher-signed. See [SECURITY](docs/SECURITY.md).

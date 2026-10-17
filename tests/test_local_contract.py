@@ -516,3 +516,71 @@ def test_unlimited_does_not_count_as_numeric_maximum(ctx):
     svc.page = svc.page.replace(svc.response["send_quote"], clause)
     svc.response["send_quote"] = clause
     assert c.poll() == "UNRESOLVED"
+
+
+# Evidence freshness and conditional-grant regression tests.
+def test_permission_expires_without_successful_repoll(ctx, monkeypatch):
+    c, svc, actor, set_doc = ctx
+    module = sys.modules['drail_test_module']
+    current = [2_000_000]
+    monkeypatch.setattr(module, 'now_seconds', lambda: current[0])
+    set_doc()
+    assert c.poll() == 'INITIALIZED'
+    assert c.can_execute(Address(AGENT), 'SEND', 8000)
+    current[0] += 3600
+    assert c.can_execute(Address(AGENT), 'SEND', 8000)
+    current[0] += 1
+    assert not c.can_execute(Address(AGENT), 'SEND', 8000)
+    state = json.loads(c.status())
+    assert state['health'] == 'OK'
+    assert state['evidence_fresh'] is False
+    assert state['last_verified_at'] == 2_000_000
+
+
+def test_same_version_repoll_renews_freshness_without_audit_spam(ctx, monkeypatch):
+    c, svc, actor, set_doc = ctx
+    module = sys.modules['drail_test_module']
+    current = [2_000_000]
+    monkeypatch.setattr(module, 'now_seconds', lambda: current[0])
+    set_doc()
+    c.poll()
+    current[0] += 3601
+    assert not c.can_execute(Address(AGENT), 'SEND', 100)
+    assert c.poll() == 'ACTIVE'
+    assert c.can_execute(Address(AGENT), 'SEND', 100)
+    assert c.audit_count() == 1
+    assert json.loads(c.status())['last_verified_at'] == current[0]
+
+
+def test_failed_poll_never_renews_freshness(ctx, monkeypatch):
+    c, svc, actor, set_doc = ctx
+    module = sys.modules['drail_test_module']
+    current = [2_000_000]
+    monkeypatch.setattr(module, 'now_seconds', lambda: current[0])
+    set_doc()
+    c.poll()
+    current[0] += 3601
+    svc.page = None
+    assert c.poll() == 'UNRESOLVED'
+    assert not c.can_execute(Address(AGENT), 'SEND', 100)
+    assert json.loads(c.status())['last_verified_at'] == 2_000_000
+
+
+def test_conditional_approval_clause_does_not_create_autonomous_cap(ctx):
+    c, svc, actor, set_doc = ctx
+    set_doc()
+    clause = 'Agents may SEND up to $100.00 per operation if a manager signs.'
+    svc.page = svc.page.replace(svc.response['send_quote'], clause)
+    svc.response['send_quote'] = clause
+    assert c.poll() == 'UNRESOLVED'
+    assert not c.can_execute(Address(AGENT), 'SEND', 8000)
+
+
+def test_unbounded_exception_does_not_create_autonomous_cap(ctx):
+    c, svc, actor, set_doc = ctx
+    set_doc()
+    clause = 'Agents may SEND up to $100.00 per operation, unlimited exceptions apply.'
+    svc.page = svc.page.replace(svc.response['send_quote'], clause)
+    svc.response['send_quote'] = clause
+    assert c.poll() == 'UNRESOLVED'
+    assert not c.initialized

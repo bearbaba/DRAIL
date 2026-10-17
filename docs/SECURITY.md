@@ -62,3 +62,7 @@ reverted `poll()` leaves the last successfully committed health unchanged.
 Therefore `emergency_pause()` must be called by an authorized actor after a
 failed consensus verification. Without a freshness mechanism and a reliable
 monitor, DRAIL cannot promise continuous policy enforcement.
+
+## Time-bounded enforcement (one hour)
+
+The guard records `last_verified_at` after a successful consensus-validated `poll()` or fresh owner approval. The view `can_execute` denies calls after 3600 seconds without a successful observation, even if `health` remains `OK`. Invalid observations cannot extend the window. The GenVM transaction clock is deterministic, not host wall-clock time. This bounds the age of the *last verification*; it does **not** authenticate the policy publisher, prove that a new policy was published, enforce immediate revocation, prevent a compromised host serving different data, or guarantee external consumers read finalized state. Consumer integrations remain responsible for currency rates, replay/idempotency and finality. Conditional or exception-laden positive grants are rejected conservatively until separate prerequisite verification is supported.

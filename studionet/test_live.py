@@ -41,6 +41,9 @@ def test_deploy_and_live_consensus():
     assert result['revision'] >= 1
     assert c.audit_count().call() >= 1
     assert result['last_policy_version'] >= 1
+    assert result['last_verified_at'] > 0
+    assert result['max_evidence_age_seconds'] == 3600
+    assert result['evidence_fresh'] is True
     assert result['agent'].lower() == agent.lower()
     for action in ('SEND', 'SWAP', 'BRIDGE'):
         cap = int(result[action.lower() + '_cents'])
