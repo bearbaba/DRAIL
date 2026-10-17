@@ -144,7 +144,7 @@ The tester was directed to retain `agent=0x3333333333333333333333333333333333333
 - Expected first poll return: `WIDENING_PENDING`; `policy_status=PENDING_WIDENING`, `pending=true`, `pending_policy_version=3`, `pending_caps=[20000,35000,2500]`.
 - Expected **effective** limits before explicit owner approval: `[5000,15000,0]` unchanged; `revision=3`; `audit_at(2).kind=WIDENING_PENDING`.
 - Expected blocked before approval: SEND 8000 (false), BRIDGE 100 (false). Permitted while evidence fresh: SEND 4000 (true).
-- **Status: V3 state readback submitted, with expected PENDING_WIDENING and effective V2 limits preserved. V3 poll transaction hash, finality evidence and audit_at(2) still pending.**
+- **Status: V3 state readback and audit_at(2) submitted, with expected PENDING_WIDENING and effective V2 limits preserved. V3 poll TX link supplied; external FINALIZED proof still pending.**
 - The V2 source was archived at `examples/archive/policy_v2_tightened_2026-10-17.txt` before this source edit.
 
 
@@ -170,9 +170,9 @@ The tester submitted the result of `status()` after invoking the V3 `poll()` aga
 | `last_verified_at` | `1792207878` |
 | `authority_url` | `https://raw.githubusercontent.com/bearbaba/DRAIL/fix/security-hardening-v1/examples/policy_v1.txt` |
 
-**Interpretation:** V3 proposes wider SEND ($200), SWAP ($350), and BRIDGE ($25) caps, but effective rights remain at V2 ($50, $150, $0). This passes the state-level widening-gate assertion and preserves denial-by-default for new permissions. The V3 transaction hash, FINALIZED receipt, and `audit_at(2)` have not yet been supplied; two provisional `can_execute` results during pending widening were supplied without reprinting the full `who`/`action` inputs. Do not count owner authorization as passed until tested.
+**Interpretation:** V3 proposes wider SEND ($200), SWAP ($350), and BRIDGE ($25) caps, but effective rights remain at V2 ($50, $150, $0). This passes the state-level widening-gate assertion and preserves denial-by-default for new permissions. The V3 transaction URL and `audit_at(2)` record have been supplied; the Explorer FINALIZED state could not be independently fetched. Two provisional `can_execute` results during pending widening were supplied without reprinting the full `who`/`action` inputs. Do not count owner authorization as passed until tested.
 
-**Next gate:** Capture V3 poll TX and `audit_at(2)`; test SEND 8000 => false, SEND 4000 => true, BRIDGE 100 => false using the configured agent before `approve_widening()`. Then test unauthorized approval with a different wallet, followed by owner approval against the unchanged same-source digest.
+**Next gate:** Confirm Explorer FINALIZED for V3 poll; test unauthorized `approve_widening()` with a different wallet and confirm state unchanged, followed by owner approval against unchanged source hash. The three permission readbacks have been supplied.
 
 ### V3 permission checks while widening pending — user-reported results
 
@@ -183,7 +183,7 @@ User reported these values after being instructed to keep agent `0x3333333333333
 | `can_execute(agent, "SEND", 8000)` | `false` | `false` |
 | `can_execute(agent, "SEND", 4000)` | `true` | `true` |
 
-These match V2 effective limits held during `PENDING_WIDENING` despite V3 proposed SEND 20000 cents. Individual messages did not contain the `who` or `action` fields, so those inputs remain assumed. Outstanding before owner approval: V3 `poll()` TX + finality, `audit_at(2)` and a rejected approval attempt from a non-owner account. The BRIDGE test was reported as `false` using `BRIDGE 100`, without reprinting the wallet input.
+These match V2 effective limits held during `PENDING_WIDENING` despite V3 proposed SEND 20000 cents. Individual messages did not contain the `who` or `action` fields, so those inputs remain assumed. Outstanding before owner approval: verify V3 poll FINALIZED and obtain a rejected approval attempt from a non-owner account. The BRIDGE test was reported as `false` using `BRIDGE 100`, without reprinting the wallet input.
 
 ### V3 BRIDGE permission check while widening pending — tester readback
 
@@ -191,3 +191,23 @@ These match V2 effective limits held during `PENDING_WIDENING` despite V3 propos
 - Assumes the same previously configured agent was supplied in the `who` field; the message omitted the actual `who` value.
 - This matches the still-effective V2 `bridge_cents=0` despite V3 proposal `pending_caps[2]=2500`.
 - `false` alone does not prove the specific blocking reason if evidence was no longer fresh; correlate with `status.evidence_fresh` from the time of testing.
+
+### V3 poll transaction and audit_at(2) — tester evidence (2026-10-17)
+
+- Poll transaction: https://explorer-studio.genlayer.com/tx/0xb56ed7007dcac2fe569d953233d1b79f1337a34c8187215f72044c18283ccba1
+- Tester did not quote the Explorer FINALIZED status; fetching the Explorer transaction URL programmatically returned an error. This record **does not independently establish finality**.
+- `actor`: `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb`
+- `kind`: `WIDENING_PENDING`; `policy_version`: `3`; `revision`: `3`
+- Effective `send_cents`: `5000` with proposed quote: "Agents may SEND up to $200.00 per operation."
+- Effective `swap_cents`: `15000` with proposed quote: "Agents may SWAP up to $350.00 per operation."
+- Effective `bridge_cents`: `0` with proposed quote: "Agents may BRIDGE up to $25.00 per operation."
+- `source_sha256`: `9e655041844ee3255486b4094dbb5badb6235532497d5155daf84a2ccedfc2fb`
+- `quote_sha256`: `489b29c4799015e5f6114d1148d1c80e7ac9ef44ff3a2619d4bdc3f925277d9e`
+
+The critical distinction is between **proposed policy quotes** and **currently effective caps**. V3's new privileges remain gated: effective rights are unchanged from V2, and `pending=true` until owner approval. No widening approval has been reported. Source at monitored path must remain at V3 for a correct source recheck during `approve_widening()`.
+
+#### Approval tests awaiting evidence
+
+1. Call `approve_widening()` from a wallet other than `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb`. Expected failure: "owner only"; `status()` remains `pending=true`, effective caps `[5000,15000,0]`.
+2. Call `approve_widening()` from owner with V3 live document unchanged. Expected success, effective caps `[20000,35000,2500]`, `pending=false`, `policy_status=ACTIVE`, and audit record `WIDENED_BY_OWNER` at index 3. The contract refetches source and requires identical digest, policy version and proposed caps.
+3. Record TX hashes and FINALIZED/failed status for both calls.
