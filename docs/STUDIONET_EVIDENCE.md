@@ -63,7 +63,7 @@ Full equivalence-principle return value reproduced by the tester:
 - [x] `can_execute(agent, "SEND", 8000)` => `true` (reported from Studio Accepted read).
 - [x] `can_execute(agent, "SEND", 12000)` => `false` (reported from Studio Accepted read).
 - [ ] `can_execute(agent, "BRIDGE", 100)` => false.
-- [ ] Tighten version 2 **at the same pinned URL**; expected caps: 5000 / 15000 / 0; record tx and verify finality.
+- [x] Tighten version 2 at the same pinned URL; user-provided Studio `status()` confirms caps 5000 / 15000 / 0, `RESTRICTED`, `revision=2`, `pending=false`. **V2 `poll()` transaction hash and FINALIZED confirmation still required.**
 - [ ] Stage version 3; expected `PENDING_WIDENING`, no increases effective before owner approval.
 - [ ] Reject unauthorized approval; approve by owner with fresh same-policy observation.
 - [ ] Verify source rollback/failure/contradictions and consumer fixture, with transaction hashes and receipts.
@@ -84,4 +84,28 @@ Full equivalence-principle return value reproduced by the tester:
 
 - Original V1 copied verbatim to `examples/archive/policy_v1_finalized_2026-10-17.txt` prior to changing the live GitHub URL.
 - Expected V2 `policy_version=2`, `send_cents=5000`, `swap_cents=15000`, `bridge_cents=0`, result `RESTRICTED`, `revision=2`.
-- Live V2 transaction ID and finality: **PENDING** — do not describe this case as passed until an actual receipt and readback are recorded.
+- Live V2 transaction ID and finality: **PENDING** — state readback received; `poll()` TX and finality receipt are still required.
+
+### Policy V2 tightening — Studio state readback submitted by tester
+
+The tester submitted the on-chain read method `status()` result after polling the same pinned URL, now serving policy version 2. No upgrade or redeployment was reported.
+
+| Field | V2 readback |
+| --- | --- |
+| `initialized` | `true` |
+| `health` | `OK` |
+| `policy_status` | `RESTRICTED` |
+| `last_policy_version` | `2` |
+| `revision` | `2` |
+| `send_cents` | `5000` |
+| `swap_cents` | `15000` |
+| `bridge_cents` | `0` |
+| `pending` | `false` |
+| `evidence_fresh` | `true` at time of tester's readback |
+| `last_source_hash` | `ad37adfe469be68acbce55e3bce8542be6664090e998142894463fd54b62f050` |
+| `last_verified_at` | `1792207351` |
+| `max_evidence_age_seconds` | `3600` |
+| `agent` | `0x3333333333333333333333333333333333333333` |
+| `owner` and `monitor` | `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb` |
+
+This is evidence that an externally changed policy activated a *tightening* state transition on the same contract; **the V2 TX hash and Explorer FINALIZED receipt have not yet been provided**. Next verify `can_execute(agent, "SEND", 8000) == false`, `can_execute(agent, "SEND", 4000) == true` while evidence remains fresh, and `audit_at(1)`; then stage V3 widening.
