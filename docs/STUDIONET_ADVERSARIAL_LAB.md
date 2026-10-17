@@ -78,7 +78,7 @@ Use `contracts/consumer_fixture.py` as a second contract deployed on Studionet w
 | Test | Source commit | New contract | TX / Explorer | State + audit | Verdict |
 | --- | --- | --- | --- | --- | --- |
 | Lab deployment + baseline | Lab V1 published in branch | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`poll()` FINALIZED](https://explorer-studio.genlayer.com/tx/0xb3fd92a84b91c250c9dc2e75df55646f2db3dff6c0380032add7275c6672f943) (tester-transcribed Explorer details) | `ACTIVE`, V1 caps `[10000,25000,0]`, `audit_at(0)=INITIALIZED`, revision 1 | BASELINE PASS |
-| Same-version conflict / recovery | TBD | TBD | TBD | TBD | PENDING |
+| Same-version conflict / recovery | Mutation commit `a247ed8`; restoration pending | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`poll()` FINALIZED](https://explorer-studio.genlayer.com/tx/0xa26822c69c44da50da6ae7fa564a83ec6498ac672510293f8e1aae72ce0cd59c), `UNRESOLVED` | `health=UNRESOLVED`, original caps retained, revision 2; `audit_at(1)` and permission read pending | TAMPER DETECTED; denial & recovery pending |
 | V2 rollback + recovery | TBD | TBD | TBD | TBD | PENDING |
 | Invalid metadata / conflict / oversize | TBD | TBD | TBD | TBD | PENDING |
 | V3 stale widening approval | TBD | TBD | TBD | TBD | PENDING |
@@ -155,6 +155,48 @@ Use `contracts/consumer_fixture.py` as a second contract deployed on Studionet w
 - The original demonstration branch `fix/security-hardening-v1` was separately checked and **still serves V3**. Original deployed demo `0xC67f64634b603cF3fe62fD3447FEedb3E4707E56` was not upgraded or touched.
 - **Next action:** From the authorized Lab owner, call `poll()` on **Lab** `0x4c80788eA0A3c80906bd365b95f4813ea64D215a`, wait for Explorer FINALIZED, then copy `status()` and `audit_at(1)`.
 - **Expected response:** `UNRESOLVED`; audit `FROZEN_VERSION_CONFLICT`; `health=UNRESOLVED`, old effective stored caps unchanged, all `can_execute()` requests denied due to health. No new authorization should result from a forbidden version rewrite.
-- **Evidence status:** Tampered source has been published, but test transaction has not yet been submitted. This is a preparation step, not a completed test.
+- **Evidence status:** Same-version tampering `poll()` has FINALIZED and returned `UNRESOLVED` with old caps intact and `health=UNRESOLVED` per user-supplied Explorer receipt and Studio status. `audit_at(1)` and `can_execute` fail-closed readbacks still need collecting before recovery.
 
-**Next source action must wait for user-provided Test B transaction and state receipt.** Recovery will restore the archived exact original V1 snapshot, not publish another unauthorized version.
+**Next source action waits for `audit_at(1)` and a permission-denial readback.** Recovery will restore the archived exact original V1 snapshot, not publish another unauthorized version.
+
+### Test B — same-version content tampering: FINALIZED evidence (2026-10-17)
+
+**Source change:** Lab-only URL remained `https://raw.githubusercontent.com/bearbaba/DRAIL/studionet-adversarial-lab/examples/adversarial/current_policy.txt` while content was modified without incrementing policy version:
+- Previously observed V1: SEND $100.00, SWAP $250.00, BRIDGE prohibited; stored hash `43614571712be09b85df4452e8b797c6eb2943b422a408a1b4abda54843860a3`.
+- Tampered V1: SEND $90.00, SWAP $250.00, BRIDGE prohibited; new independently fetched `VALID` consensus observation hash `47a2a86548f4cf44f53d1b72e75f0b4b21c2ccbb401f4a41cd75f8f71391d6be`. Version was deliberately kept at `1`.
+
+**Explorer transaction** (user-transcribed) https://explorer-studio.genlayer.com/tx/0xa26822c69c44da50da6ae7fa564a83ec6498ac672510293f8e1aae72ce0cd59c:
+
+| Field | Evidence |
+| --- | --- |
+| Status | **FINALIZED** |
+| Type / method | Call / `poll` |
+| From | `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb` |
+| To | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` |
+| Nonce | `354` |
+| Created at (Explorer display) | Oct 17, 2026, 11:40:18 AM |
+| Execution mode | Normal (Full Consensus) |
+| Initial validators / rotation | `5` / `0` |
+| Consensus result | **Accepted** |
+| GenVM execution | **SUCCESS** |
+| Return | `"UNRESOLVED"` |
+| Equivalence output | `result=VALID`, `policy_version=1`, SEND `9000`, SWAP `25000`, BRIDGE `0`, new digest above |
+
+**Post-poll `status()`** provided by tester:
+
+| Field | Observed |
+| --- | --- |
+| `initialized` | `true` |
+| `health` | **`UNRESOLVED`** |
+| `policy_status` | `ACTIVE` (historical policy label; not permission to execute) |
+| `evidence_fresh` | `false` |
+| `last_policy_version` | `1` |
+| `last_source_hash` | **`43614571712be09b85df4452e8b797c6eb2943b422a408a1b4abda54843860a3`**, unchanged baseline |
+| `send_cents` / `swap_cents` / `bridge_cents` | **`10000 / 25000 / 0`**, unchanged baseline |
+| `revision` | `2` |
+| `last_verified_at` | `1792211544`, unchanged |
+| `pending` | `false` |
+
+**Interpretation:** The source was intelligible to consensus but its source hash conflicted with the already-approved same-version baseline. The contract rejected the unauthorized in-place revision, kept its last effective limits, froze its health and returned UNRESOLVED. This is **PASS for detection/state freeze**. The audit reason and failure-closed authorization still need direct read method receipts before calling the entire Test B case fully complete.
+
+**Do not mutate the lab source yet.** On the same instance, read `audit_at(1)` (expected `kind=FROZEN_VERSION_CONFLICT` and `source_sha256=47a2...`) and call `can_execute(agent, "SEND", 100)` (expected `false`). Once readbacks are captured, restore the exact initial V1 snapshot and poll to check recovery. Main demo on `fix/security-hardening-v1` remains untouched.
