@@ -268,7 +268,7 @@ This completes the negative owner-gate test at the contract-state level. Next: a
 
 **Assessment:** This is convincing state-level evidence that pending V3 limits became effective following the authorized owner approval, unlike the unauthorized roll-back which left the caps unchanged. The policy version stays `3` because approval does not publish a new policy version; revision increases to `4`. The active source hash matches the staged V3 hash.
 
-**Limitations:** The owner-approval Explorer transaction details have now been transcribed by the tester: transaction status was **ACCEPTED**, not yet explicitly **FINALIZED**, even though the process timeline includes a "6Finalized" stage label. GenVM execution was **SUCCESS**, consensus result **Accepted**, and the result was **ACTIVE**. No independent finality claim is made. `audit_at(3)` has now been supplied and confirms `WIDENED_BY_OWNER`, revision 4 and V3 caps. Post-approval `can_execute` permission checks are still pending.
+**Limitations:** The tester supplied refreshed owner-approval Explorer transaction details explicitly showing **FINALIZED** (previously ACCEPTED). GenVM execution was **SUCCESS**, consensus result **Accepted**, and the result was **ACTIVE**. No independent finality claim is made. `audit_at(3)` has now been supplied and confirms `WIDENED_BY_OWNER`, revision 4 and V3 caps. Post-approval `can_execute` permission checks are still pending.
 
 **Next steps:** inspect Explorer FINALIZED status; while `evidence_fresh=true` test `can_execute(agent,"SEND",8000)=true`, `can_execute(agent,"SEND",25000)=false`, `can_execute(agent,"BRIDGE",100)=true`, and `can_execute(agent,"BRIDGE",3000)=false`. All rights are strictly authorization checks; the fixture does not transfer funds. Keep the monitored source at policy version 3.
 
@@ -279,7 +279,7 @@ https://explorer-studio.genlayer.com/tx/0x78addae43112dfeeb2264a7c33a53f73e758d1
 
 | Explorer field | Tester-provided result |
 | --- | --- |
-| **Status** | **ACCEPTED** (as of user's copied receipt; not claimed FINALIZED) |
+| **Status** | **FINALIZED** (confirmed by tester's later copied Explorer details; initially ACCEPTED) |
 | From (owner) | `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb` |
 | To (DRAIL) | `0xC67f64634b603cF3fe62fD3447FEedb3E4707E56` |
 | Method | `approve_widening` |
@@ -298,7 +298,7 @@ Equivalence-principle output, normalized JSON copied from tester's receipt:
 {"bridge_cents":2500,"bridge_quote":"Agents may BRIDGE up to $25.00 per operation.","policy_version":3,"result":"VALID","send_cents":20000,"send_quote":"Agents may SEND up to $200.00 per operation.","source_hash":"9e655041844ee3255486b4094dbb5badb6235532497d5155daf84a2ccedfc2fb","swap_cents":35000,"swap_quote":"Agents may SWAP up to $350.00 per operation."}
 ```
 
-The result confirms that source was re-observed with proposed V3 caps, quotes and the same digest that was staged. Combined with the separately provided state readback (`ACTIVE`, no pending proposal, `revision=4`), this supports an accepted and successfully executed owner-gated approval. The visible timeline's `6Finalized` label is not treated as a substitute for the overview's **Status: FINALIZED**. Re-check finality before making that stronger claim.
+The result confirms that source was re-observed with proposed V3 caps, quotes and the same digest that was staged. Combined with the separately provided state readback (`ACTIVE`, no pending proposal, `revision=4`), this supports an accepted and successfully executed owner-gated approval. The tester subsequently supplied a refreshed Explorer Overview explicitly showing **Status: FINALIZED**, so the finality requirement for this owner-approval transaction is now satisfied.
 
 **Audit confirmed by tester:** `audit_at(3)` returned `WIDENED_BY_OWNER`, revision 4, policy version 3, effective caps `[20000,35000,2500]`, source and quote hashes matching the V3 staged proposal. The four post-approval authorization boundary checks have now been reported by the tester; finality verification still pending.
 
@@ -332,7 +332,7 @@ The source and quote digests match the prior `WIDENING_PENDING` audit (`audit_at
 | 3 | WIDENING_PENDING | 5000 / 15000 / 0 | Confirmed by tester |
 | 4 | WIDENED_BY_OWNER | 20000 / 35000 / 2500 | Confirmed by tester |
 
-**Open:** owner-approval Explorer overview was most recently **ACCEPTED** (execution **SUCCESS**) rather than explicitly FINALIZED; stale source / rollback / fetch failure adversarial checks and consumer fixture call are not yet proven on this deployed instance. The four post-approval authorization tests were reported and matched their expected responses (see below). Do not claim mainnet production readiness.
+**Open:** Owner-approval transaction has now been confirmed **FINALIZED** by tester's Explorer details; stale source / rollback / fetch failure adversarial checks and the consumer fixture call are not yet proven on this deployed instance. The four post-approval authorization tests were reported and matched their expected responses (see below). Do not claim mainnet production readiness.
 
 ### V3 post-owner-approval permission checks (2026-10-17)
 
@@ -347,4 +347,24 @@ The tester reported four `can_execute` responses after the approved V3 `status()
 
 **Security significance:** SEND 8000 and BRIDGE 100 were denied while V3 widening was staged; after authorized owner approval the same requests were permitted, while requests exceeding approved SEND 20000 and BRIDGE 2500 remained denied. This is a tester-observed authorization outcome at the Studio Accepted read state, not a financial transfer or independently signed execution trace.
 
-**Next live coverage priorities:** Recheck owner-approval FINALIZED status; verify time-expiry/fail-closed without mutating the source; exercise same-version conflict/rollback, source-unavailable freeze, and stale pending proposal on a disposable *separate contract or carefully planned follow-on policy versions* so the completed V1→V3 demo remains reproducible. Deploy and test `consumer_fixture.py` for cross-contract enforcement. Keep policy source V3 intact until the evidence plan is agreed.
+**Next live coverage priorities:** Verify time-expiry/fail-closed without mutating the source; exercise same-version conflict/rollback, source-unavailable freeze, and stale pending proposal on a disposable *separate contract or carefully planned follow-on policy versions* so the completed V1→V3 demo remains reproducible. Deploy and test `consumer_fixture.py` for cross-contract enforcement. Keep policy source V3 intact until the evidence plan is agreed.
+
+### Finality upgrade — V3 owner approval (2026-10-17)
+
+On a later review, the tester copied refreshed **GenLayer Explorer transaction details** for:
+
+https://explorer-studio.genlayer.com/tx/0x78addae43112dfeeb2264a7c33a53f73e758d19cc857689bd1dd56a8c0c077d3
+
+- Explorer overview **Status: FINALIZED** (updated from the previously copied **ACCEPTED** status).
+- Transaction method: `approve_widening`; execution mode Normal (Full Consensus).
+- Sender `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb` (contract owner).
+- Target `0xC67f64634b603cF3fe62fD3447FEedb3E4707E56`.
+- Initial validators: **5**; consensus result **Accepted**; rotation count **0**.
+- GenVM Execution Result: **SUCCESS**, Return Value: **"ACTIVE"**.
+- Re-verified consensus result: `VALID`, source digest `9e655041844ee3255486b4094dbb5badb6235532497d5155daf84a2ccedfc2fb`, policy version **3**, caps **20000 / 35000 / 2500**, matching the staged V3 proposal.
+- State and audit corroboration provided earlier: `ACTIVE`, `pending=false`, `revision=4`, `audit_at(3).kind=WIDENED_BY_OWNER`.
+- Post-approval test responses matched SEND $80 allowed, SEND $250 denied, BRIDGE $1 allowed, BRIDGE $30 denied.
+
+**Result:** The authorized, source-rechecking V3 widening transaction is now confirmed **FINALIZED** by the tester's Explorer receipt, with state, audit and authorization behavior all consistent. As with the other user-provided Explorer transcripts, this documentation does not represent an independent third-party attestation of the UI. This confirms the happy-path owner-gated widening flow on Studionet, not production/mainnet security or the outstanding adversarial and downstream integration cases.
+
+**Evidence collection status:** The V1 bootstrap and V3 owner approval have explicit user-transcribed FINALIZED receipts. The V2 tightening and V3 staging have linked poll transactions and matching audit/state readbacks, but their Explorer FINALIZED status has not been independently established in this ledger.
