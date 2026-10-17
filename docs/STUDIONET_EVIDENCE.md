@@ -108,4 +108,15 @@ The tester submitted the on-chain read method `status()` result after polling th
 | `agent` | `0x3333333333333333333333333333333333333333` |
 | `owner` and `monitor` | `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb` |
 
-This is evidence that an externally changed policy activated a *tightening* state transition on the same contract; **the V2 TX hash and Explorer FINALIZED receipt have not yet been provided**. Next verify `can_execute(agent, "SEND", 8000) == false`, `can_execute(agent, "SEND", 4000) == true` while evidence remains fresh, and `audit_at(1)`; then stage V3 widening.
+This is evidence that an externally changed policy activated a *tightening* state transition on the same contract; **the V2 TX hash and Explorer FINALIZED receipt have not yet been provided**.
+
+### V2 access readbacks submitted by tester
+
+The tester was directed to retain `agent=0x3333333333333333333333333333333333333333` and `action=SEND`, then reported these two successive responses without reiterating the input fields:
+
+| Assumed input | Reported Studio read result | Expected |
+| --- | --- | --- |
+| `can_execute(agent, "SEND", 8000)` | `false` | `false` |
+| `can_execute(agent, "SEND", 4000)` | `true` | `true` |
+
+**Qualification:** The messages gave amounts and response values but omitted the `who` and `action` inputs. These match the prescribed tests *assuming the agent and SEND action were unchanged*. Accepted-state readback is not a transaction FINALIZED receipt. Pending: V2 `poll()` transaction ID and finality; `audit_at(1)` history receipt; then V3 staged widening.
