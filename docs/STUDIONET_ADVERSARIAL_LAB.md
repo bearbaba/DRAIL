@@ -629,3 +629,25 @@ Tester additionally reported **`SEND 100 TRUE`** as the post-recovery `can_execu
 - **Expected audit:** `audit_at(8).kind=FROZEN_UNCLEAR`, with refusal source SHA and empty quotes. **Expected permission:** `can_execute(who=0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb,action="SEND",amount_cents=100)=false` after the freeze.
 - **This case is not PASS yet.** Only source publication is verified; a FINALIZED write, post-write status, audit, and authorization readback are needed. Until they are captured, do not restore V2 or publish another adversarial fixture.
 - Isolation: original demonstration `fix/security-hardening-v1/examples/policy_v1.txt` was checked independently still serving V3 (SEND $200, SWAP $350); main demo contract `0xC67f64634b603cF3fe62fD3447FEedb3E4707E56` remains untouched.
+
+
+## Phase close-out — security lab stopped (Oct 17, 2026)
+
+**Decision:** Conclude the interactive adversarial security-lab phase here. Do not extend the manual checklist or request further transactions for this phase.
+
+**Confirmed test outcomes (based on the tester's Explorer receipts, on-chain view readbacks and indexed audit records):**
+- **Baseline V1:** initialized and approved.
+- **Same-version mutation:** FINALIZED conflict freeze, `FROZEN_VERSION_CONFLICT`, SEND $1 denied. Restoring exactly V1 yielded FINALIZED `RECOVERED`, SEND $1 allowed while fresh.
+- **V2 tightening:** FINALIZED `TIGHTENED`, limits SEND $50/SWAP $150/BRIDGE $0, boundary checks ($80 false/$40 true).
+- **V2→V1 rollback:** FINALIZED freeze with `FROZEN_ROLLBACK` and SEND $1 denied; exact V2 restore yielded FINALIZED `RECOVERED`, SEND $1 allowed.
+- **Wrong-agent source:** FINALIZED `FROZEN_UNCLEAR` and SEND $1 denied; exact V2 restore yielded FINALIZED `RECOVERED`, SEND $1 allowed.
+
+**Not a completed test:** Wrong Chain ID had its source fixture published (`c24d2cf3d91712dae1250e4810f040f13c921611`), but no wrong-chain `poll()` transaction, audit or permission response was supplied; **do not claim PASS** for this case.
+
+**Final source restoration:** Lab-only `examples/adversarial/current_policy.txt` reverted to the previously approved exact V2 bytes at commit `c5beef66f553b0ba41d56281c4b12a0260c0f16b`. The public raw URL was re-fetched and compared byte-for-byte to archived `03_tightened_v2.txt` (Git blob SHA `f38d761596fcb785121bdbf7faa3af3e149e15d5`). The file once again binds agent `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb` to Studionet chain `61999`, policy version 2, SEND $50, SWAP $150, BRIDGE prohibited.
+
+**Last observed on-chain Lab state:** the successful `poll()` after wrong-agent recovery (TX `0x822e81fbfc60a8a0c2a30287786271248221ccf42c3a82833e2818d6ac8938ac`) was FINALIZED and healthy at revision 8; its `audit_at(7)=RECOVERED` and SEND 100 true were subsequently read. There was **no later wrong-chain `poll()` transaction** reported. The file restoration itself does not prove current network state, nor extend evidence freshness indefinitely (TTL 3600s).
+
+**Isolation:** the original demo's `fix/security-hardening-v1/examples/policy_v1.txt` was independently checked and remains V3. The original demo contract `0xC67f64634b603cF3fe62fD3447FEedb3E4707E56` was not targeted by the Lab writes.
+
+**Delivery recommendation:** Move next to project-facing polish: concise README and clear risk boundary, single frontend, testnet demo and reviewer walkthrough. These permission-view tests are **not production security certification**, do not move actual funds, do not authenticate the policy publisher, and are **not grounds to enable mainnet money operations**.
