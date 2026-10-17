@@ -223,7 +223,7 @@ The critical distinction is between **proposed policy quotes** and **currently e
 - Interpretation: consensus agreed that the unauthorized invocation must roll back; this is **not** a successful widening approval. The screenshot does not reveal the sender's address. The error is strong evidence that the caller was not `owner` as checked by the contract.
 - **Post-transaction verification completed by tester:** a fresh `status()` readback confirms `pending=true`, `policy_status=PENDING_WIDENING`, effective caps `[5000,15000,0]`, `revision=3`, `health=OK`, `evidence_fresh=true`, unchanged V3 pending source hash. The transaction's finality status in Explorer has not been independently fetched.
 
-**Positive owner-approval test state readback now supplied:** transaction link and `status()` confirm widening was activated with caps `[20000,35000,2500]` and `pending=false`. Remaining: confirm Explorer finality, `audit_at(3).kind=WIDENED_BY_OWNER`, and post-approval permission checks.
+**Positive owner-approval test state readback now supplied:** transaction link and `status()` confirm widening was activated with caps `[20000,35000,2500]` and `pending=false`. Remaining: confirm Explorer finality and perform post-approval permission checks. `audit_at(3)` has now been provided and matches `WIDENED_BY_OWNER`.
 
 ### Unauthorized approval — verified state unchanged after rollback
 
@@ -268,9 +268,9 @@ This completes the negative owner-gate test at the contract-state level. Next: a
 
 **Assessment:** This is convincing state-level evidence that pending V3 limits became effective following the authorized owner approval, unlike the unauthorized roll-back which left the caps unchanged. The policy version stays `3` because approval does not publish a new policy version; revision increases to `4`. The active source hash matches the staged V3 hash.
 
-**Limitations:** The owner-approval Explorer transaction details have now been transcribed by the tester: transaction status was **ACCEPTED**, not yet explicitly **FINALIZED**, even though the process timeline includes a "6Finalized" stage label. GenVM execution was **SUCCESS**, consensus result **Accepted**, and the result was **ACTIVE**. No independent finality claim is made. `audit_at(3)` has not yet been supplied; do not claim its `WIDENED_BY_OWNER` record was directly observed. Post-approval `can_execute` permission checks are also pending.
+**Limitations:** The owner-approval Explorer transaction details have now been transcribed by the tester: transaction status was **ACCEPTED**, not yet explicitly **FINALIZED**, even though the process timeline includes a "6Finalized" stage label. GenVM execution was **SUCCESS**, consensus result **Accepted**, and the result was **ACTIVE**. No independent finality claim is made. `audit_at(3)` has now been supplied and confirms `WIDENED_BY_OWNER`, revision 4 and V3 caps. Post-approval `can_execute` permission checks are still pending.
 
-**Next steps:** inspect Explorer status, capture `audit_at(3)`; while `evidence_fresh=true` test `can_execute(agent,"SEND",8000)=true`, `can_execute(agent,"SEND",25000)=false`, `can_execute(agent,"BRIDGE",100)=true`, and `can_execute(agent,"BRIDGE",3000)=false`. All rights are strictly authorization checks; the fixture does not transfer funds. Keep the monitored source at policy version 3.
+**Next steps:** inspect Explorer FINALIZED status; while `evidence_fresh=true` test `can_execute(agent,"SEND",8000)=true`, `can_execute(agent,"SEND",25000)=false`, `can_execute(agent,"BRIDGE",100)=true`, and `can_execute(agent,"BRIDGE",3000)=false`. All rights are strictly authorization checks; the fixture does not transfer funds. Keep the monitored source at policy version 3.
 
 ### Owner approval — detailed Explorer receipt (tester transcription)
 
@@ -300,4 +300,36 @@ Equivalence-principle output, normalized JSON copied from tester's receipt:
 
 The result confirms that source was re-observed with proposed V3 caps, quotes and the same digest that was staged. Combined with the separately provided state readback (`ACTIVE`, no pending proposal, `revision=4`), this supports an accepted and successfully executed owner-gated approval. The visible timeline's `6Finalized` label is not treated as a substitute for the overview's **Status: FINALIZED**. Re-check finality before making that stronger claim.
 
-**Pending:** copy `audit_at(3)` and verify `kind=WIDENED_BY_OWNER`, `revision=4`; then run post-approval authorization boundary checks, with finality verification when available.
+**Audit confirmed by tester:** `audit_at(3)` returned `WIDENED_BY_OWNER`, revision 4, policy version 3, effective caps `[20000,35000,2500]`, source and quote hashes matching the V3 staged proposal. Remaining: post-approval authorization boundary checks and finality verification when available.
+
+### Audit #4 — owner-authorized widening directly observed by tester (2026-10-17)
+
+Tester submitted `audit_at(3)` after calling `approve_widening()` as the authorized owner.
+
+| Recorded field | Observed value |
+| --- | --- |
+| `actor` | `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb` |
+| `kind` | **WIDENED_BY_OWNER** |
+| `policy_version` | `3` |
+| `revision` | `4` |
+| `send_cents` | `20000` |
+| `swap_cents` | `35000` |
+| `bridge_cents` | `2500` |
+| `send_quote` | `Agents may SEND up to $200.00 per operation.` |
+| `swap_quote` | `Agents may SWAP up to $350.00 per operation.` |
+| `bridge_quote` | `Agents may BRIDGE up to $25.00 per operation.` |
+| `source_sha256` | `9e655041844ee3255486b4094dbb5badb6235532497d5155daf84a2ccedfc2fb` |
+| `quote_sha256` | `489b29c4799015e5f6114d1148d1c80e7ac9ef44ff3a2619d4bdc3f925277d9e` |
+
+The source and quote digests match the prior `WIDENING_PENDING` audit (`audit_at(2)`). The owner approval execution readback independently reported `policy_status=ACTIVE`, `pending=false`, caps `[20000,35000,2500]`, revision 4. Taken together, this is strong evidence of correct on-chain transition from staged widening to owner-authorized effective rights, supported by a new provenance-preserving audit entry.
+
+#### Confirmed lifecycle and remaining gates
+
+| Revision | Recorded audit kind | Effective SEND / SWAP / BRIDGE (USD cents) | Status |
+| --- | --- | --- | --- |
+| 1 | INITIALIZED | 10000 / 25000 / 0 | Confirmed by tester |
+| 2 | TIGHTENED | 5000 / 15000 / 0 | Confirmed by tester |
+| 3 | WIDENING_PENDING | 5000 / 15000 / 0 | Confirmed by tester |
+| 4 | WIDENED_BY_OWNER | 20000 / 35000 / 2500 | Confirmed by tester |
+
+**Open:** owner-approval Explorer overview was most recently **ACCEPTED** (execution **SUCCESS**) rather than explicitly FINALIZED; post-approval `can_execute` boundary checks, stale source / rollback / fetch failure adversarial checks and consumer fixture call are not yet proven on this deployed instance. Do not claim mainnet production readiness.
