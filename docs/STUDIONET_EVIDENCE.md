@@ -183,4 +183,11 @@ User reported these values after being instructed to keep agent `0x3333333333333
 | `can_execute(agent, "SEND", 8000)` | `false` | `false` |
 | `can_execute(agent, "SEND", 4000)` | `true` | `true` |
 
-These match V2 effective limits held during `PENDING_WIDENING` despite V3 proposed SEND 20000 cents. Individual messages did not contain the `who` or `action` fields, so those inputs remain assumed. Outstanding before owner approval: `can_execute(agent, "BRIDGE", 100) == false`, V3 `poll()` TX + finality, `audit_at(2)` and a rejected approval attempt from a non-owner account.
+These match V2 effective limits held during `PENDING_WIDENING` despite V3 proposed SEND 20000 cents. Individual messages did not contain the `who` or `action` fields, so those inputs remain assumed. Outstanding before owner approval: V3 `poll()` TX + finality, `audit_at(2)` and a rejected approval attempt from a non-owner account. The BRIDGE test was reported as `false` using `BRIDGE 100`, without reprinting the wallet input.
+
+### V3 BRIDGE permission check while widening pending — tester readback
+
+- Tester supplied action `BRIDGE`, `amount_cents=100` and Studio read result `false`.
+- Assumes the same previously configured agent was supplied in the `who` field; the message omitted the actual `who` value.
+- This matches the still-effective V2 `bridge_cents=0` despite V3 proposal `pending_caps[2]=2500`.
+- `false` alone does not prove the specific blocking reason if evidence was no longer fresh; correlate with `status.evidence_fresh` from the time of testing.
