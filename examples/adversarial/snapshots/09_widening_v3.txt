@@ -1,0 +1,14 @@
+DRAIL_POLICY_V1
+POLICY_VERSION: 3
+AGENT: 0x4c7cb73ac8f8999af21cfc9ff4cf2333a9508dcb
+CHAIN_ID: 61999
+CURRENCY: USD
+STATUS: EFFECTIVE
+
+DRAIL Agent Wallet Policy — Current Effective Rules
+
+Agents may SEND up to $200.00 per operation.
+Agents may SWAP up to $350.00 per operation.
+Agents may BRIDGE up to $25.00 per operation.
+
+All figures are maximum single-operation amounts in US dollars.
