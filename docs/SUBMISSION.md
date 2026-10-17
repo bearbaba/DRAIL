@@ -2,18 +2,18 @@
 
 ## Form
 
-- Category: **Builder → Intelligent Contracts** (standalone reusable primitive, not a full Project).
+- Category: **Builder → Intelligent Contracts**.
 - Contribution date: **17/10/2026**.
 - Title: **DRAIL — Consensus-Bound Agent Policy Guard**
-- Notes / Description (943 characters, limit 1,000):
+- Notes / Description (957 characters, limit 1,000):
 
-DRAIL is a reusable GenLayer Intelligent Contract that turns an owner-pinned, versioned web policy into on-chain SEND/SWAP/BRIDGE permission limits for AI agents. Validators independently fetch the same source and use comparative consensus to agree on action-specific USD-cent caps, the full document hash and supporting source quotes.
+DRAIL is a reusable GenLayer Intelligent Contract that enforces consensus-verified permission limits for AI agents. It converts an owner-pinned, versioned policy into on-chain SEND, SWAP, and BRIDGE caps. Validators independently retrieve the source and compare exact action limits, the source hash, and supporting quotes through the Equivalence Principle.
 
-Tightening takes effect automatically. Widening requires owner approval and a fresh matching consensus read. Same-version edits, rollbacks, wrong-agent metadata and unverifiable evidence freeze authorization without overwriting previously verified limits.
+Policy tightening applies automatically. Any increase requires explicit owner approval and a fresh verification of the same evidence. Conflicting edits, rollbacks, and invalid policy scope freeze authorization while preserving the last verified limits.
 
-DRAIL provides can_execute(), a revision-indexed audit trail, a one-hour evidence-freshness gate and emergency pause. FINALIZED Studionet receipts demonstrate initialization, tightening, owner-gated widening, adversarial freezes and recovery.
+DRAIL exposes can_execute() for integration, maintains a revision-indexed audit trail, and enforces evidence freshness. FINALIZED Studionet transactions demonstrate policy activation, tightening, owner-gated widening, fail-closed protection, and recovery.
 
-This is a non-custodial, reusable permission primitive with a consumer fixture, not a live-funds product.
+DRAIL gives builders a composable, auditable foundation for AI-agent permission control.
 
 ## Prioritized links to paste into Evidence
 
