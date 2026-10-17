@@ -16,11 +16,16 @@ def read(name: str) -> str:
     return (SNAP / name).read_text(encoding="utf-8")
 
 
-def test_initial_current_policy_identical_to_v1_baseline():
-    baseline = read("01_baseline_v1.txt")
-    current = (BASE / "current_policy.txt").read_text(encoding="utf-8")
-    assert (BASE / "current_policy.txt").exists()  # deliberately mutable across live cases
-    assert "POLICY_VERSION: 1" in current
+def test_current_policy_is_an_archived_lab_snapshot():
+    # The authority URL is intentionally rotated across V1/V2 and adversarial
+    # cases. Ensure it matches a reviewed fixture, not permanently V1.
+    current_file = BASE / "current_policy.txt"
+    assert current_file.exists()
+    current = current_file.read_text(encoding="utf-8")
+    allowed_snapshots = {fixture.read_text(encoding="utf-8")
+                         for fixture in SNAP.glob("*.txt")}
+    assert allowed_snapshots
+    assert current in allowed_snapshots
 
 
 def test_positive_snapshots_are_bound_to_correct_agent_and_chain():
