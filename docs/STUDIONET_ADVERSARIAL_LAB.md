@@ -593,4 +593,19 @@ Next: restore the byte-identical approved V2 Lab policy `03_tightened_v2.txt` at
 
 Lab-only restoration commit: `09f686051bf23aeedac3c7afa41834c4c1242f4f`. The public current policy was fetched and verified byte-identical to `snapshots/03_tightened_v2.txt` (V2 SEND $50, SWAP $150; correct Lab agent and Studionet chain). Main demo branch still serves V3.
 
-On-chain Test G freeze remains until a new finalized `poll()` from the Lab owner. Expected after poll: `RESTRICTED`, `health=OK`, `revision=8`, accepted caps `[5000,15000,0]`, `audit_at(7).kind=RECOVERED`, `can_execute(SEND,100)=true` while evidence fresh. No recovery transaction has been supplied yet. Do not change Lab policy to wrong-chain fixture until Test H is verified.
+On-chain Test G freeze remains until a new finalized `poll()` from the Lab owner. Expected after poll: `RESTRICTED`, `health=OK`, `revision=8`, accepted caps `[5000,15000,0]`, `audit_at(7).kind=RECOVERED`, `can_execute(SEND,100)=true` while evidence fresh. Tester has since supplied a FINALIZED recovery `poll()` and matching `status()` (details below). Do not change Lab policy to the wrong-chain fixture until the `RECOVERED` audit and restored permission are verified.
+
+### Test H — live V2 recovery poll FINALIZED after wrong-agent freeze (2026-10-17)
+
+- Explorer TX: https://explorer-studio.genlayer.com/tx/0x822e81fbfc60a8a0c2a30287786271248221ccf42c3a82833e2818d6ac8938ac
+- **Status: FINALIZED** (tester-transcribed Explorer receipt); from `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb` to isolated contract `0x4c80788eA0A3c80906bd365b95f4813ea64D215a`.
+- Method: `poll()`; nonce `360`; created Oct 17, 2026, 12:28:56 PM (Explorer displayed); Normal execution, 5 initial validators, 0 rotations.
+- Consensus: **Accepted**; GenVM: **SUCCESS**; return: **`"RESTRICTED"`**.
+- Independent consensus equivalence source observation: `result=VALID`, `policy_version=2`, SEND `5000`, SWAP `15000`, BRIDGE `0`, digest `87853722863dadb7fefd17e5e136387046caa78e6f16f5e273cfd785168ec4d2`. Quotes match the approved V2 source.
+- User `status()` after FINALIZED `poll()`: `initialized=true`, `health=OK`, `evidence_fresh=true` at that readback, `policy_status=RESTRICTED`, `last_policy_version=2`, `revision=8`, `send_cents=5000`, `swap_cents=15000`, `bridge_cents=0`, `pending=false`.
+- Source digest in `last_source_hash=87853722863dadb7fefd17e5e136387046caa78e6f16f5e273cfd785168ec4d2` is identical to the previously accepted V2 digest. `last_verified_at=1792214936`; max evidence age `3600` seconds. Owner, agent and monitor remain the configured Test Lab wallet; chain `61999`.
+- Repo inspection reconfirmed the isolated Lab `current_policy.txt` byte-identical to `snapshots/03_tightened_v2.txt`. No source changes needed.
+
+**Evidence status: Recovery state and transaction finality PASS.** Test H is not fully closed until the tester provides `audit_at(7)`, expected `kind=RECOVERED`, `revision=8`, V2 caps and digests, and a positive `can_execute(who=agent,action="SEND",amount_cents=100)` while evidence remains fresh. If evidence expires, repeat `poll()` and interpret the audit index based on actual `audit_count()` before reading the audit.
+
+**Keep the Lab V2 policy fixed.** Do not publish the wrong-chain fixture `06_wrong_chain_v2.txt` until those readbacks are recorded; original demo V3 must remain unaffected.
