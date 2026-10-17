@@ -78,7 +78,7 @@ Use `contracts/consumer_fixture.py` as a second contract deployed on Studionet w
 | Test | Source commit | New contract | TX / Explorer | State + audit | Verdict |
 | --- | --- | --- | --- | --- | --- |
 | Lab deployment + baseline | Lab V1 published in branch | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`poll()` FINALIZED](https://explorer-studio.genlayer.com/tx/0xb3fd92a84b91c250c9dc2e75df55646f2db3dff6c0380032add7275c6672f943) (tester-transcribed Explorer details) | `ACTIVE`, V1 caps `[10000,25000,0]`, `audit_at(0)=INITIALIZED`, revision 1 | BASELINE PASS |
-| Same-version conflict / recovery | Mutation commit `a247ed8`; restoration pending | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`poll()` FINALIZED](https://explorer-studio.genlayer.com/tx/0xa26822c69c44da50da6ae7fa564a83ec6498ac672510293f8e1aae72ce0cd59c), `UNRESOLVED` | `health=UNRESOLVED`, original caps retained, `audit_at(1)=FROZEN_VERSION_CONFLICT`, SEND 100 denied | TAMPER & FAIL-CLOSED PASS; recovery pending |
+| Same-version conflict / recovery | Mutation `a247ed8`, restoration `c347022` | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`poll()` FINALIZED](https://explorer-studio.genlayer.com/tx/0xa26822c69c44da50da6ae7fa564a83ec6498ac672510293f8e1aae72ce0cd59c), `UNRESOLVED` | `health=UNRESOLVED`, original caps retained, `audit_at(1)=FROZEN_VERSION_CONFLICT`, SEND 100 denied | TAMPER & FAIL-CLOSED PASS; recovery pending |
 | V2 rollback + recovery | TBD | TBD | TBD | TBD | PENDING |
 | Invalid metadata / conflict / oversize | TBD | TBD | TBD | TBD | PENDING |
 | V3 stale widening approval | TBD | TBD | TBD | TBD | PENDING |
@@ -229,3 +229,17 @@ The tester returned the full audit entry after the finalized same-version tamper
 The tester called the prescribed view `can_execute(who=0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb,action="SEND",amount_cents=100)`. Their Studio response was **`false`** while the contract's health was `UNRESOLVED` after a FINALIZED `FROZEN_VERSION_CONFLICT` poll. The message gave `false SEND 100` but did not reprint the `who` field; the actor association is based on the previously specified input. This completes the live negative read test, without implying that the standalone permission view transferred any funds.
 
 **Case B: PASS.** Next step is restoration of the exact archived version-1 content and a fresh `poll()` of the isolated lab contract. Neither the original demo contract nor its monitored source may be modified.
+
+### Test C — exact V1 source restoration published; live recovery pending
+
+- **Lab-only policy restoration commit:** `c347022de25f2a5234ad1ad27008853e1c2ac6f4`.
+- **URL:** https://raw.githubusercontent.com/bearbaba/DRAIL/studionet-adversarial-lab/examples/adversarial/current_policy.txt
+- GitHub raw fetch verified **byte-for-byte equality** with the archived `examples/adversarial/snapshots/01_baseline_v1.txt`, blob SHA `26558d9e2b36b5e1c45025e7b62f35bc1ff6b1a9`.
+- Restored content: `POLICY_VERSION: 1`, SEND $100, SWAP $250, BRIDGE prohibited, correct lab agent and Studionet chain.
+- Original accepted on-chain source digest before tampering: `43614571712be09b85df4452e8b797c6eb2943b422a408a1b4abda54843860a3`. The new `poll()` should independently recompute this **same** digest from the restored bytes.
+- **NEXT ACTION:** Owner invokes `poll()` on the SAME Security Lab contract `0x4c80788eA0A3c80906bd365b95f4813ea64D215a`, **Normal (Full Consensus)**. Wait until `FINALIZED`, read `status()`, `audit_count()`, and last `audit_at()`.
+- **Expected:** return `ACTIVE` (recovery), `health=OK`, `initialized=true`, `policy_status=ACTIVE`, `last_policy_version=1`, caps `[10000,25000,0]`, `evidence_fresh=true` (until TTL), `revision=3`, `audit_at(2).kind=RECOVERED`.
+- After recovery, `can_execute(agent, "SEND", 100)` should return `true` **while evidence is fresh**. Do not mark case C PASS without live readbacks and transaction finality.
+- The original demo policy on `fix/security-hardening-v1` was independently checked and still serves version 3. Its deployed reference contract must remain untouched.
+
+**Do not publish adversarial policy V2 until the Lab V1 recovery transaction and audit are recorded.**
