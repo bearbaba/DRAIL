@@ -209,7 +209,7 @@ The critical distinction is between **proposed policy quotes** and **currently e
 #### Approval tests awaiting evidence
 
 1. **Executed:** `approve_widening()` from a non-owner wallet. Studio receipt shows `ACCEPTED` consensus, `ERROR` execution, `rollback owner only` from five validators all marked Agree. Post-error `status()` readback now received: `pending=true`, `policy_status=PENDING_WIDENING`, `revision=3`, effective caps unchanged.
-2. Call `approve_widening()` from owner with V3 live document unchanged. Expected success, effective caps `[20000,35000,2500]`, `pending=false`, `policy_status=ACTIVE`, and audit record `WIDENED_BY_OWNER` at index 3. The contract refetches source and requires identical digest, policy version and proposed caps.
+2. **Executed:** tester supplied owner `approve_widening()` TX and post-call `status()` confirming effective caps `[20000,35000,2500]`, `pending=false`, `policy_status=ACTIVE`, `revision=4`. `audit_at(3)` still pending. The contract implementation refetches source and requires identical digest, version and proposed caps.
 3. Record TX hashes and FINALIZED/failed status for both calls.
 
 ### Unauthorized approve_widening — negative security test (tester screenshot)
@@ -223,7 +223,7 @@ The critical distinction is between **proposed policy quotes** and **currently e
 - Interpretation: consensus agreed that the unauthorized invocation must roll back; this is **not** a successful widening approval. The screenshot does not reveal the sender's address. The error is strong evidence that the caller was not `owner` as checked by the contract.
 - **Post-transaction verification completed by tester:** a fresh `status()` readback confirms `pending=true`, `policy_status=PENDING_WIDENING`, effective caps `[5000,15000,0]`, `revision=3`, `health=OK`, `evidence_fresh=true`, unchanged V3 pending source hash. The transaction's finality status in Explorer has not been independently fetched.
 
-**Next planned positive test:** from the authorized owner `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb`, call `approve_widening()` only after confirming the pending state; the monitored policy URL still served V3 when last checked. Expect `WIDENED_BY_OWNER` audit record and newly effective caps `[20000,35000,2500]`.
+**Positive owner-approval test state readback now supplied:** transaction link and `status()` confirm widening was activated with caps `[20000,35000,2500]` and `pending=false`. Remaining: confirm Explorer finality, `audit_at(3).kind=WIDENED_BY_OWNER`, and post-approval permission checks.
 
 ### Unauthorized approval — verified state unchanged after rollback
 
@@ -242,3 +242,32 @@ The tester submitted the full `status()` JSON after the non-owner `approve_widen
 | `pending_source_hash` | `9e655041844ee3255486b4094dbb5badb6235532497d5155daf84a2ccedfc2fb` |
 
 This completes the negative owner-gate test at the contract-state level. Next: authorized owner approval and audit record verification.
+
+### Owner approve_widening — successful V3 state transition (tester readback)
+
+- TX link provided by tester: https://explorer-studio.genlayer.com/tx/0x78addae43112dfeeb2264a7c33a53f73e758d19cc857689bd1dd56a8c0c077d3
+- Contract remains `0xC67f64634b603cF3fe62fD3447FEedb3E4707E56` on Studionet.
+- Observed `status()` after the owner's invocation:
+
+| Field | On-chain Studio readback |
+| --- | --- |
+| `last_policy_version` | `3` |
+| `policy_status` | `ACTIVE` |
+| `pending` | `false` |
+| `pending_caps` | `[0,0,0]` |
+| `pending_policy_version` | `0` |
+| `pending_source_hash` | empty |
+| `send_cents` | `20000` |
+| `swap_cents` | `35000` |
+| `bridge_cents` | `2500` |
+| `health` | `OK` |
+| `evidence_fresh` | `true` at time of read |
+| `revision` | `4` |
+| `last_source_hash` | `9e655041844ee3255486b4094dbb5badb6235532497d5155daf84a2ccedfc2fb` |
+| `last_verified_at` | `1792208642` |
+
+**Assessment:** This is convincing state-level evidence that pending V3 limits became effective following the authorized owner approval, unlike the unauthorized roll-back which left the caps unchanged. The policy version stays `3` because approval does not publish a new policy version; revision increases to `4`. The active source hash matches the staged V3 hash.
+
+**Limitations:** The owner-approval TX URL was supplied but an automated attempt to load the Explorer page failed, so independent FINALIZED confirmation remains outstanding. `audit_at(3)` has not yet been supplied; do not claim its `WIDENED_BY_OWNER` record was directly observed. Post-approval `can_execute` permission checks are also pending.
+
+**Next steps:** inspect Explorer status, capture `audit_at(3)`; while `evidence_fresh=true` test `can_execute(agent,"SEND",8000)=true`, `can_execute(agent,"SEND",25000)=false`, `can_execute(agent,"BRIDGE",100)=true`, and `can_execute(agent,"BRIDGE",3000)=false`. All rights are strictly authorization checks; the fixture does not transfer funds. Keep the monitored source at policy version 3.
