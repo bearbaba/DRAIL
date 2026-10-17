@@ -78,7 +78,7 @@ Use `contracts/consumer_fixture.py` as a second contract deployed on Studionet w
 | Test | Source commit | New contract | TX / Explorer | State + audit | Verdict |
 | --- | --- | --- | --- | --- | --- |
 | Lab deployment + baseline | Lab V1 published in branch | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`poll()` FINALIZED](https://explorer-studio.genlayer.com/tx/0xb3fd92a84b91c250c9dc2e75df55646f2db3dff6c0380032add7275c6672f943) (tester-transcribed Explorer details) | `ACTIVE`, V1 caps `[10000,25000,0]`, `audit_at(0)=INITIALIZED`, revision 1 | BASELINE PASS |
-| Same-version conflict / recovery | Mutation `a247ed8`, restored `c347022` | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`UNRESOLVED` FINALIZED](https://explorer-studio.genlayer.com/tx/0xa26822c69c44da50da6ae7fa564a83ec6498ac672510293f8e1aae72ce0cd59c); [`ACTIVE` recovery FINALIZED](https://explorer-studio.genlayer.com/tx/0xe3c1b26cdbaa646604634af2efc69d3b361b64d1eb0319f4cc89f81f03999a8c) | version-conflict audit, SEND 100 denied while frozen; post-recovery `health=OK`, revision 3, baseline hash/caps restored | TAMPERING PASS; RECOVERY STATE PASS; recovery audit & allowed check pending |
+| Same-version conflict / recovery | Mutation `a247ed8`, restored `c347022` | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`UNRESOLVED` FINALIZED](https://explorer-studio.genlayer.com/tx/0xa26822c69c44da50da6ae7fa564a83ec6498ac672510293f8e1aae72ce0cd59c); [`ACTIVE` recovery FINALIZED](https://explorer-studio.genlayer.com/tx/0xe3c1b26cdbaa646604634af2efc69d3b361b64d1eb0319f4cc89f81f03999a8c) | version-conflict audit, SEND 100 denied while frozen; post-recovery `health=OK`, revision 3, baseline hash/caps restored | TAMPERING PASS; RECOVERY STATE PASS; recovery audit PASS; permitted-call check pending |
 | V2 rollback + recovery | TBD | TBD | TBD | TBD | PENDING |
 | Invalid metadata / conflict / oversize | TBD | TBD | TBD | TBD | PENDING |
 | V3 stale widening approval | TBD | TBD | TBD | TBD | PENDING |
@@ -257,4 +257,25 @@ User copied the complete transaction Explorer overview and returned a new `statu
 - Restored source was checked directly on GitHub: `examples/adversarial/current_policy.txt` has the exact same blob SHA (`26558d9e2b36b5e1c45025e7b62f35bc1ff6b1a9`) as the archived initial V1.
 - The Lab contract **remains** `0x4c80788eA0A3c80906bd365b95f4813ea64D215a`; demo contract `0xC67f64634b603cF3fe62fD3447FEedb3E4707E56` and its policy not modified.
 
-**Outcome: recovery state-transition PASS**, confirmed by a user-transcribed FINALIZED transaction and corroborating status readback. Still outstanding for comprehensive recovery verification: `audit_at(2)` should show `kind=RECOVERED` and the original source hash (code logic inspected) and `can_execute(agent,"SEND",100)` should yield `true` while evidence is fresh. Do not claim those readbacks were performed until the tester supplies them. The next fixture `03_tightened_v2.txt` must not be published before these are recorded.
+**Outcome: recovery state-transition PASS**, confirmed by the user-transcribed FINALIZED transaction, status readback and `audit_at(2)` confirming `RECOVERED`. **Still outstanding:** actual `can_execute(agent,"SEND",100)` returning `true` while the evidence is fresh. Do not publish `03_tightened_v2.txt` until this authorization readback is recorded.
+
+### Test C — recovery audit_at(2) confirmed (tester-reported)
+
+After the successful and FINALIZED recovery `poll()` transaction `0xe3c1b26cdbaa646604634af2efc69d3b361b64d1eb0319f4cc89f81f03999a8c`, tester supplied the complete `audit_at(2)` result:
+
+| Audit field | Observed |
+| --- | --- |
+| `kind` | **`RECOVERED`** |
+| `actor` | `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb` |
+| `policy_version` | `1` |
+| `revision` | `3` |
+| `send_cents` / `swap_cents` / `bridge_cents` | `10000 / 25000 / 0` |
+| `send_quote` | `Agents may SEND up to $100.00 per operation.` |
+| `swap_quote` | `Agents may SWAP up to $250.00 per operation.` |
+| `bridge_quote` | `BRIDGE is prohibited.` |
+| `source_sha256` | `43614571712be09b85df4452e8b797c6eb2943b422a408a1b4abda54843860a3` |
+| `quote_sha256` | `87b1fa57d2a2c63bb0bc3a376af9d96b604fed653c40782cfca3089a92e2ec1c` |
+
+The recovered source and quote digests **exactly match** the original `audit_at(0)` baseline, and this is a new record at revision 3, preserving the earlier revision-2 `FROZEN_VERSION_CONFLICT` evidence. Both source and audit history were retained with no redeployment.
+
+**Recovery ledger status:** finalized recovery and audit **PASS**. The tester has not yet supplied the expected **post-recovery authorization** readback. While `evidence_fresh=true`, call `can_execute(who=owner/agent, action="SEND", amount_cents=100)`, expected **`true`**. Because this contract enforces a one-hour evidence TTL, if it has expired before this check, first renew the observation via `poll()` and recapture the latest `status()`. Keep the Lab source at original V1 until authorization verification is complete.
