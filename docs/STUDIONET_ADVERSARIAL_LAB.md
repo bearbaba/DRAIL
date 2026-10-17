@@ -78,7 +78,7 @@ Use `contracts/consumer_fixture.py` as a second contract deployed on Studionet w
 | Test | Source commit | New contract | TX / Explorer | State + audit | Verdict |
 | --- | --- | --- | --- | --- | --- |
 | Lab deployment + baseline | Lab V1 published in branch | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`poll()` FINALIZED](https://explorer-studio.genlayer.com/tx/0xb3fd92a84b91c250c9dc2e75df55646f2db3dff6c0380032add7275c6672f943) (tester-transcribed Explorer details) | `ACTIVE`, V1 caps `[10000,25000,0]`, `audit_at(0)=INITIALIZED`, revision 1 | BASELINE PASS |
-| Same-version conflict / recovery | Mutation commit `a247ed8`; restoration pending | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`poll()` FINALIZED](https://explorer-studio.genlayer.com/tx/0xa26822c69c44da50da6ae7fa564a83ec6498ac672510293f8e1aae72ce0cd59c), `UNRESOLVED` | `health=UNRESOLVED`, original caps retained, revision 2; `audit_at(1)` and permission read pending | TAMPER DETECTED; denial & recovery pending |
+| Same-version conflict / recovery | Mutation commit `a247ed8`; restoration pending | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | [`poll()` FINALIZED](https://explorer-studio.genlayer.com/tx/0xa26822c69c44da50da6ae7fa564a83ec6498ac672510293f8e1aae72ce0cd59c), `UNRESOLVED` | `health=UNRESOLVED`, original caps retained, `audit_at(1)=FROZEN_VERSION_CONFLICT`, SEND 100 denied | TAMPER & FAIL-CLOSED PASS; recovery pending |
 | V2 rollback + recovery | TBD | TBD | TBD | TBD | PENDING |
 | Invalid metadata / conflict / oversize | TBD | TBD | TBD | TBD | PENDING |
 | V3 stale widening approval | TBD | TBD | TBD | TBD | PENDING |
@@ -155,9 +155,9 @@ Use `contracts/consumer_fixture.py` as a second contract deployed on Studionet w
 - The original demonstration branch `fix/security-hardening-v1` was separately checked and **still serves V3**. Original deployed demo `0xC67f64634b603cF3fe62fD3447FEedb3E4707E56` was not upgraded or touched.
 - **Next action:** From the authorized Lab owner, call `poll()` on **Lab** `0x4c80788eA0A3c80906bd365b95f4813ea64D215a`, wait for Explorer FINALIZED, then copy `status()` and `audit_at(1)`.
 - **Expected response:** `UNRESOLVED`; audit `FROZEN_VERSION_CONFLICT`; `health=UNRESOLVED`, old effective stored caps unchanged, all `can_execute()` requests denied due to health. No new authorization should result from a forbidden version rewrite.
-- **Evidence status:** Same-version tampering `poll()` has FINALIZED and returned `UNRESOLVED` with old caps intact and `health=UNRESOLVED` per user-supplied Explorer receipt and Studio status. `audit_at(1)` confirms `FROZEN_VERSION_CONFLICT` with disputed source and preserved cap; the `can_execute` fail-closed readback is still needed before recovery.
+- **Evidence status:** Same-version tampering `poll()` has FINALIZED and returned `UNRESOLVED` with old caps intact and `health=UNRESOLVED` per user-supplied Explorer receipt and Studio status. `audit_at(1)` confirms `FROZEN_VERSION_CONFLICT` with disputed source and preserved cap; the `can_execute` fail-closed readback has now been supplied, returning `false` for SEND 100 while health was UNRESOLVED.
 
-**Next source action waits for `audit_at(1)` and a permission-denial readback.** Recovery will restore the archived exact original V1 snapshot, not publish another unauthorized version.
+**Next source action is to restore exact original baseline V1 bytes.** Both `audit_at(1)` and permission-denial readback are now supplied. Recovery will restore the archived exact original V1 snapshot, not publish another unauthorized version.
 
 ### Test B — same-version content tampering: FINALIZED evidence (2026-10-17)
 
@@ -197,9 +197,9 @@ Use `contracts/consumer_fixture.py` as a second contract deployed on Studionet w
 | `last_verified_at` | `1792211544`, unchanged |
 | `pending` | `false` |
 
-**Interpretation:** The source was intelligible to consensus but its source hash conflicted with the already-approved same-version baseline. The contract rejected the unauthorized in-place revision, kept its last effective limits, froze its health and returned UNRESOLVED. This is **PASS for detection/state freeze**. The audit reason is now directly confirmed by `audit_at(1)`; fail-closed authorization still needs a `can_execute` readback before calling the entire Test B case fully complete.
+**Interpretation:** The source was intelligible to consensus but its source hash conflicted with the already-approved same-version baseline. The contract rejected the unauthorized in-place revision, kept its last effective limits, froze its health and returned UNRESOLVED. This is **PASS for detection/state freeze**. The audit reason is now directly confirmed by `audit_at(1)`; fail-closed authorization has now been confirmed with a `can_execute` readback; Test B is PASS.
 
-**Do not mutate the lab source yet.** On the same instance call `can_execute(agent, "SEND", 100)` (expected `false`) to confirm the frozen health actually blocks authorization. Once readbacks are captured, restore the exact initial V1 snapshot and poll to check recovery. Main demo on `fix/security-hardening-v1` remains untouched.
+The tester supplied `can_execute(agent, "SEND", 100) = false`. The exact V1 baseline may now be restored and polled for recovery. Main demo on `fix/security-hardening-v1` remains untouched.
 
 ### Test B — audit_at(1) readback (reported by tester)
 
@@ -222,4 +222,10 @@ The tester returned the full audit entry after the finalized same-version tamper
 
 **Audit interpretation:** A quote from the invalid replacement document is retained as *evidence of an attempted policy change*, while the effective cap remains unchanged. The mismatched dollar amounts in quote and cap are intentional and accurately signal the conflict; they do NOT mean the tampered cap was accepted. The `source_sha256` records the conflicting document and the contract's `last_source_hash` stays on the original baseline. The explicit audit kind confirms why the contract froze.
 
-**Verdict so far:** same-version tamper detection, preservation of effective caps, and evidence audit are confirmed. Pending final fail-closed authorization check: `can_execute(0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb, "SEND", 100) == false`. Do not restore the baseline policy URL until the permission check is recorded.
+**Test B verdict: PASS.** Same-version tamper detection, preservation of effective caps, audit `FROZEN_VERSION_CONFLICT`, and fail-closed authorization confirmed. The tester reported `can_execute(0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb, "SEND", 100) = false`. The response omitted the `who` field, inferred from the agreed test instructions. Restoration may proceed.
+
+### Test B — Permission fail-closed readback (tester, 2026-10-17)
+
+The tester called the prescribed view `can_execute(who=0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb,action="SEND",amount_cents=100)`. Their Studio response was **`false`** while the contract's health was `UNRESOLVED` after a FINALIZED `FROZEN_VERSION_CONFLICT` poll. The message gave `false SEND 100` but did not reprint the `who` field; the actor association is based on the previously specified input. This completes the live negative read test, without implying that the standalone permission view transferred any funds.
+
+**Case B: PASS.** Next step is restoration of the exact archived version-1 content and a fresh `poll()` of the isolated lab contract. Neither the original demo contract nor its monitored source may be modified.
