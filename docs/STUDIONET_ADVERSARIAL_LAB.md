@@ -45,7 +45,7 @@ For each test: (1) record policy source commit and URL; (2) allow GitHub raw pro
 | D — tightening | `03_tightened_v2.txt` | Owner `poll()` | `RESTRICTED`, caps `[5000,15000,0]` without approval |
 | E — rollback | `04_rollback_v1.txt` | Owner `poll()` | `UNRESOLVED`, `FROZEN_ROLLBACK`; V2 caps preserved but denied |
 | F — recovery | Restore `03_tightened_v2.txt` | Owner `poll()` | Health `OK`, effective V2 caps restored |
-| G — wrong agent | [FINALIZED `poll()`](https://explorer-studio.genlayer.com/tx/0x22ee0b9ec759f7f78ebc135d227660bc4cc6732bf456ee8c4710ddce18c388c6) | `UNCLEAR`, `UNRESOLVED`, revision 7; accepted V2 caps/hash preserved | State/finality PASS; `audit_at(6)` & denied `can_execute` pending |
+| G — wrong agent | [FINALIZED `poll()`](https://explorer-studio.genlayer.com/tx/0x22ee0b9ec759f7f78ebc135d227660bc4cc6732bf456ee8c4710ddce18c388c6) | `UNCLEAR`, `UNRESOLVED`, revision 7, `audit_at(6)=FROZEN_UNCLEAR`, accepted V2 caps/hash preserved; SEND $1 denied | **FULL PASS**; restoration pending |
 | H — wrong chain | Restore V2, then publish `06_wrong_chain_v2.txt` | Poll after healthy recovery | `FROZEN_UNCLEAR`, execution frozen |
 | I — duplicate rule | Restore V2, then publish `07_duplicate_send_v2.txt` | Poll after healthy recovery | `FROZEN_UNCLEAR`, conflicting SEND clauses rejected |
 | J — oversized source | Restore V2, then publish `08_oversized_v2.txt` | Poll after healthy recovery | `FROZEN_UNCLEAR`; full file exceeds 8192 UTF-8 bytes |
@@ -529,10 +529,10 @@ The tester then called the prescribed view `can_execute(who=0x4C7cb73aC8F8999af2
 - **Predicted state after a FINALIZED, successful `poll()`:** return `"UNRESOLVED"`, `health=UNRESOLVED`, `evidence_fresh=false`, **last accepted version stays 2**, accepted V2 digest unchanged, effective caps remain `[5000,15000,0]`, `revision=7`, `pending=false`, historical `policy_status=RESTRICTED`.
 - **Predicted audit:** `audit_at(6).kind=FROZEN_UNCLEAR`, `revision=7`, `policy_version=2`, effective V2 caps preserved. The audit may have no quotes / quote digest for an `UNCLEAR` source: capture the actual record rather than assuming those fields.
 - **Predicted permission read:** `can_execute(who=0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb,action="SEND",amount_cents=100) = false` after the finalized freeze.
-- **Update:** The tester has now provided a FINALIZED Test G Explorer TX and on-chain status proving `UNCLEAR`, `UNRESOLVED`, revision 7, and preserved V2 caps/hash. `audit_at(6)` and fail-closed `can_execute` are still awaited; do not mark the entire test FULL PASS yet.
+- **Update:** FINALIZED Test G poll, on-chain state, `audit_at(6)=FROZEN_UNCLEAR`, and `can_execute(SEND,100)=false` all supplied by the tester. The wrong-agent case is **FULL PASS**.
 - **Isolation guard:** the established demo URL on `fix/security-hardening-v1` was independently read and remains original **V3**, SEND $200 / SWAP $350. Never modify or poll the original demo contract for these tests.
 
-**Next requested evidence:** `poll()` is already FINALIZED and `status()` recorded. Now read `audit_at(6)` and `can_execute(agent,"SEND",100)` on the SAME Lab contract. Do **not** restore V2 or publish wrong-chain source until denial checks are captured.
+**Next action:** The wrong-agent denial has been captured. Restore exact valid V2 bytes at the Lab-only policy URL, then request another `poll()` to verify recovery before any further adversarial fixture.
 
 ### Test G — FINALIZED wrong-agent rejection and state readback (2026-10-17)
 
@@ -564,6 +564,27 @@ Consensus equivalence output:
 
 **Interpretation:** the document's header binds it to the wrong `AGENT`, so the deterministic metadata check returns `UNCLEAR` even though amounts in the content match V2. The last approved V2 source digest and effective caps were *not* replaced; the contract has health `UNRESOLVED`.
 
-**Evidence grade: Wrong-Agent Detection/Freeze PASS** using a tester-transcribed FINALIZED TX and contract status readback; full Test G not yet closed. **Next:** `audit_at(6)` should show `kind=FROZEN_UNCLEAR`, revision `7`, and previously approved caps; `can_execute(who=0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb,action="SEND",amount_cents=100)` should be **`false`**.
+**Evidence grade: Wrong-Agent FULL PASS.** The tester subsequently confirmed `audit_at(6).kind=FROZEN_UNCLEAR` at revision 7, V2 caps retained, and `can_execute(SEND,100)=false` in an Accepted Studio read.
 
 **IMPORTANT:** Keep the same wrong-agent source live until these two reads are recorded. Do not modify the main demo source or deployed contract. A fail-closed contract view is a permission check, not a funds-transfer test.
+
+### Test G — wrong-agent fail-closed audit + permission readback (tester, 2026-10-17)
+
+The user provided the complete `audit_at(6)` entry for the finalized wrong-agent test:
+
+| Field | Actual |
+| --- | --- |
+| `kind` | **`FROZEN_UNCLEAR`** |
+| `actor` | `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb` |
+| `policy_version` | **`2`** (previously accepted) |
+| `revision` | **`7`** |
+| `send_cents` / `swap_cents` / `bridge_cents` | **`5000 / 15000 / 0`** (unchanged V2 effective caps) |
+| `source_sha256` | **`ad37adfe469be68acbce55e3bce8542be6664090e998142894463fd54b62f050`** (the refused wrong-agent document) |
+| `quote_sha256` | empty |
+| `send_quote`, `swap_quote`, `bridge_quote` | all empty |
+
+The tester additionally reported Studio **Response (Accepted): `false`** for the prescribed `can_execute(who=0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb,action="SEND",amount_cents=100)`. The copied response included `false SEND 100` but did not explicitly repeat the `who` address; it is inferred from the test instructions.
+
+**Test G FULL PASS:** wrong-agent metadata was rejected as `UNCLEAR`, TX `poll()` was **FINALIZED** with return `UNRESOLVED`, stored policy remained V2, audit captured the refused source digest with empty rule quotes, and `can_execute` denied SEND $1. No real transfer or live-asset transaction was executed.
+
+Next: restore the byte-identical approved V2 Lab policy `03_tightened_v2.txt` at the same isolated URL. Then test `poll()` recovery and archive revision 8 as `RECOVERED`; do NOT assume the contract recovers merely because the off-chain file was restored.
