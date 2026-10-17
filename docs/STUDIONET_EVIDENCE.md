@@ -135,3 +135,14 @@ The tester was directed to retain `agent=0x3333333333333333333333333333333333333
 **Assessment:** User-provided audit and status demonstrate expected effective tightening and full source quotes. Linked Explorer FINALIZED status cannot be independently verified from the available page response.
 
 **Version-2 snapshot:** examples/archive/policy_v2_tightened_2026-10-17.txt, saved before preparing version 3.
+
+### Version-3 widening source published (2026-10-17)
+
+- Mutable monitored path: https://raw.githubusercontent.com/bearbaba/DRAIL/fix/security-hardening-v1/examples/policy_v1.txt
+- Publish commit: d85c81d7018c0ac0d7cf441824b0407717baf2d4
+- Version: 3. Proposed limits: SEND 20000 cents, SWAP 35000 cents, BRIDGE 2500 cents.
+- Expected first poll return: `WIDENING_PENDING`; `policy_status=PENDING_WIDENING`, `pending=true`, `pending_policy_version=3`, `pending_caps=[20000,35000,2500]`.
+- Expected **effective** limits before explicit owner approval: `[5000,15000,0]` unchanged; `revision=3`; `audit_at(2).kind=WIDENING_PENDING`.
+- Expected blocked before approval: SEND 8000 (false), BRIDGE 100 (false). Permitted while evidence fresh: SEND 4000 (true).
+- **Status: source V3 published, on-chain V3 poll and audit pending. Do NOT claim passing the widening gate until successful TX and status readback.**
+- The V2 source was archived at `examples/archive/policy_v2_tightened_2026-10-17.txt` before this source edit.
