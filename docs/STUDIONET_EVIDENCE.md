@@ -63,7 +63,7 @@ Full equivalence-principle return value reproduced by the tester:
 - [x] `can_execute(agent, "SEND", 8000)` => `true` (reported from Studio Accepted read).
 - [x] `can_execute(agent, "SEND", 12000)` => `false` (reported from Studio Accepted read).
 - [ ] `can_execute(agent, "BRIDGE", 100)` => false.
-- [x] Tighten version 2 at the same pinned URL; user-provided Studio `status()` confirms caps 5000 / 15000 / 0, `RESTRICTED`, `revision=2`, `pending=false`. **V2 `poll()` transaction hash and FINALIZED confirmation still required.**
+- [x] Tighten version 2 at the same pinned URL; user-provided Studio `status()` confirms caps 5000 / 15000 / 0, `RESTRICTED`, `revision=2`, `pending=false`. **V2 poll transaction hash supplied; its FINALIZED status not independently verified.**
 - [ ] Stage version 3; expected `PENDING_WIDENING`, no increases effective before owner approval.
 - [ ] Reject unauthorized approval; approve by owner with fresh same-policy observation.
 - [ ] Verify source rollback/failure/contradictions and consumer fixture, with transaction hashes and receipts.
@@ -84,7 +84,7 @@ Full equivalence-principle return value reproduced by the tester:
 
 - Original V1 copied verbatim to `examples/archive/policy_v1_finalized_2026-10-17.txt` prior to changing the live GitHub URL.
 - Expected V2 `policy_version=2`, `send_cents=5000`, `swap_cents=15000`, `bridge_cents=0`, result `RESTRICTED`, `revision=2`.
-- Live V2 transaction ID and finality: **PENDING** — state readback received; `poll()` TX and finality receipt are still required.
+- Live V2 TX: 0x1c795d57bc357c98024c993424fd47a88b118a3ab3de2b5030f2754f37ff3df0. User supplied Explorer link; separate FINALIZED check outstanding.
 
 ### Policy V2 tightening — Studio state readback submitted by tester
 
@@ -108,7 +108,7 @@ The tester submitted the on-chain read method `status()` result after polling th
 | `agent` | `0x3333333333333333333333333333333333333333` |
 | `owner` and `monitor` | `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb` |
 
-This is evidence that an externally changed policy activated a *tightening* state transition on the same contract; **the V2 TX hash and Explorer FINALIZED receipt have not yet been provided**.
+This is evidence that an externally changed policy activated a *tightening* state transition on the same contract; **the V2 TX hash was supplied, but Explorer FINALIZED status has not yet been verified**.
 
 ### V2 access readbacks submitted by tester
 
@@ -119,4 +119,19 @@ The tester was directed to retain `agent=0x3333333333333333333333333333333333333
 | `can_execute(agent, "SEND", 8000)` | `false` | `false` |
 | `can_execute(agent, "SEND", 4000)` | `true` | `true` |
 
-**Qualification:** The messages gave amounts and response values but omitted the `who` and `action` inputs. These match the prescribed tests *assuming the agent and SEND action were unchanged*. Accepted-state readback is not a transaction FINALIZED receipt. Pending: V2 `poll()` transaction ID and finality; `audit_at(1)` history receipt; then V3 staged widening.
+**Qualification:** The messages gave amounts and response values but omitted the `who` and `action` inputs. These match the prescribed tests *assuming the agent and SEND action were unchanged*. Accepted-state readback is not a transaction FINALIZED receipt. V2 poll TX link and audit_at(1) received; finality verification still pending, then V3 staged widening.
+
+### V2 audit_at(1) — tester readback (2026-10-17)
+
+- V2 poll TX: https://explorer-studio.genlayer.com/tx/0x1c795d57bc357c98024c993424fd47a88b118a3ab3de2b5030f2754f37ff3df0
+- actor: 0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb
+- kind: **TIGHTENED**; policy_version: **2**; revision: **2**
+- send_cents: **5000**; send_quote: "Agents may SEND up to $50.00 per operation."
+- swap_cents: **15000**; swap_quote: "Agents may SWAP up to $150.00 per operation."
+- bridge_cents: **0**; bridge_quote: "BRIDGE is prohibited."
+- source_sha256: ad37adfe469be68acbce55e3bce8542be6664090e998142894463fd54b62f050
+- quote_sha256: b972dc7aa95303ee14fa397c589f75c5fb68b9d9cad19f2d87a735174d4f1134
+
+**Assessment:** User-provided audit and status demonstrate expected effective tightening and full source quotes. Linked Explorer FINALIZED status cannot be independently verified from the available page response.
+
+**Version-2 snapshot:** examples/archive/policy_v2_tightened_2026-10-17.txt, saved before preparing version 3.
