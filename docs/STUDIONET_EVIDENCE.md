@@ -208,7 +208,7 @@ The critical distinction is between **proposed policy quotes** and **currently e
 
 #### Approval tests awaiting evidence
 
-1. **Executed:** `approve_widening()` from a non-owner wallet. Studio receipt shows `ACCEPTED` consensus, `ERROR` execution, `rollback owner only` from five validators all marked Agree. Post-error `status()` readback still outstanding.
+1. **Executed:** `approve_widening()` from a non-owner wallet. Studio receipt shows `ACCEPTED` consensus, `ERROR` execution, `rollback owner only` from five validators all marked Agree. Post-error `status()` readback now received: `pending=true`, `policy_status=PENDING_WIDENING`, `revision=3`, effective caps unchanged.
 2. Call `approve_widening()` from owner with V3 live document unchanged. Expected success, effective caps `[20000,35000,2500]`, `pending=false`, `policy_status=ACTIVE`, and audit record `WIDENED_BY_OWNER` at index 3. The contract refetches source and requires identical digest, policy version and proposed caps.
 3. Record TX hashes and FINALIZED/failed status for both calls.
 
@@ -221,6 +221,24 @@ The critical distinction is between **proposed policy quotes** and **currently e
 - Execution result shown in Studio: **ERROR**, output `None`
 - Validator set: **five entries**, each showed `[rollback] owner only` and `Agree`
 - Interpretation: consensus agreed that the unauthorized invocation must roll back; this is **not** a successful widening approval. The screenshot does not reveal the sender's address. The error is strong evidence that the caller was not `owner` as checked by the contract.
-- **Missing post-transaction verification:** read `status()` again and confirm `pending=true`, `policy_status=PENDING_WIDENING`, effective caps `[5000,15000,0]`, `revision=3`. Also record finalized transaction outcome in Explorer if possible.
+- **Post-transaction verification completed by tester:** a fresh `status()` readback confirms `pending=true`, `policy_status=PENDING_WIDENING`, effective caps `[5000,15000,0]`, `revision=3`, `health=OK`, `evidence_fresh=true`, unchanged V3 pending source hash. The transaction's finality status in Explorer has not been independently fetched.
 
 **Next planned positive test:** from the authorized owner `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb`, call `approve_widening()` only after confirming the pending state; the monitored policy URL still served V3 when last checked. Expect `WIDENED_BY_OWNER` audit record and newly effective caps `[20000,35000,2500]`.
+
+### Unauthorized approval — verified state unchanged after rollback
+
+The tester submitted the full `status()` JSON after the non-owner `approve_widening()` attempt. Confirmed no on-chain permission increase, no revision increment, and no removal of pending proposal:
+
+| Field | Post-rollback state |
+| --- | --- |
+| `policy_status` | `PENDING_WIDENING` |
+| `pending` | `true` |
+| `pending_policy_version` | `3` |
+| `pending_caps` | `[20000,35000,2500]` |
+| `send_cents` / `swap_cents` / `bridge_cents` | `5000 / 15000 / 0` |
+| `revision` | `3` |
+| `health` | `OK` |
+| `evidence_fresh` | `true` (at read time) |
+| `pending_source_hash` | `9e655041844ee3255486b4094dbb5badb6235532497d5155daf84a2ccedfc2fb` |
+
+This completes the negative owner-gate test at the contract-state level. Next: authorized owner approval and audit record verification.
