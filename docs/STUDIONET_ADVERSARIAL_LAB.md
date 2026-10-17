@@ -77,7 +77,7 @@ Use `contracts/consumer_fixture.py` as a second contract deployed on Studionet w
 
 | Test | Source commit | New contract | TX / Explorer | State + audit | Verdict |
 | --- | --- | --- | --- | --- | --- |
-| Lab deployment + baseline | Initial branch commit | TBD | TBD | TBD | PENDING |
+| Lab deployment + baseline | Lab V1 published in branch | `0x4c80788eA0A3c80906bd365b95f4813ea64D215a` | Deployment TX not provided; `poll()` pending | Constructor state readback supplied; `initialized=false` | DEPLOYED; activation pending |
 | Same-version conflict / recovery | TBD | TBD | TBD | TBD | PENDING |
 | V2 rollback + recovery | TBD | TBD | TBD | TBD | PENDING |
 | Invalid metadata / conflict / oversize | TBD | TBD | TBD | TBD | PENDING |
@@ -85,4 +85,18 @@ Use `contracts/consumer_fixture.py` as a second contract deployed on Studionet w
 | Pause + recover | TBD | TBD | TBD | TBD | PENDING |
 | Consumer fixture allow/deny | TBD | TBD | TBD | TBD | PENDING |
 
-**No adversarial-lab live tests have been claimed or performed by creating these fixtures.** User must deploy the new contract instance and run the transactions. Use this document to track actual evidence rather than guessing receipts.
+**Lab deployment has now been reported with a fresh contract address and constructor-state readback.** This is not evidence of a finalized deployment receipt or any adversarial test passing. The initial `poll()` transaction and all adversarial scenarios are still pending. Capture actual transactions and status before recording outcomes.
+
+### Security Lab instance — initial Studio readback, 2026-10-17
+
+- **New isolated contract**: `0x4c80788eA0A3c80906bd365b95f4813ea64D215a`
+- Studio URL: https://studio.genlayer.com/?import-contract=0x4c80788eA0A3c80906bd365b95f4813ea64D215a
+- **Network:** GenLayer Studionet (`chain_id=61999`)
+- **Pinned source**: `https://raw.githubusercontent.com/bearbaba/DRAIL/studionet-adversarial-lab/examples/adversarial/current_policy.txt`
+- **Owner / Monitor / Agent:** `0x4C7cb73aC8F8999af21cfc9fF4cF2333a9508Dcb`
+- **Constructor state observed in user-provided `status()`**: `initialized=false`, `health=UNRESOLVED`, `policy_status=UNVERIFIED`, `revision=0`, `last_policy_version=0`, `evidence_fresh=false`, effective caps `[0,0,0]`, `pending=false`.
+- **Next:** call `poll()` from owner, wait for **FINALIZED**, then collect `status()` and `audit_at(0)`. Expected V1 `INITIALIZED`, effective caps `[10000,25000,0]`, `revision=1`.
+- **Do not change** `current_policy.txt` until the Lab V1 transaction finalizes and its audit is captured.
+- **Original reference contract untouched**: `0xC67f64634b603cF3fe62fD3447FEedb3E4707E56`.
+
+**Evidence quality:** Studio state readback only; deployment TX hash and finalized status not supplied.
